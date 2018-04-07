@@ -102,7 +102,7 @@ std::vector<double> Optimizer::optimize_forager() {
     alpha = &wolves[0];
     beta = &wolves[1];
     delta = &wolves[2];
-    printf("Initial NREIS are alpha=%.8f J, beta=%.8f J, delta=%.8f J.\n", alpha->fitness, beta->fitness, delta->fitness);
+    printf("Initial NREIs are alpha=%.8f J, beta=%.8f J, delta=%.8f J.\n", alpha->fitness, beta->fitness, delta->fitness);
     const double exponent = (algorithm_use_exponential_decay) ? 2. : 1.;
     gsl_rng_default_seed = (unsigned long) time(nullptr);
     gsl_rng *rng = gsl_rng_alloc(gsl_rng_taus);
