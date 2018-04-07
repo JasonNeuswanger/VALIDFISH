@@ -178,7 +178,7 @@ std::vector<double> Optimizer::optimize_forager() {
         alpha_fitnesses_by_step.emplace_back(alpha->fitness);
         current_iteration += 1;
         if (verbose) {
-            printf("At the end of %d iterations with %lu wolves, the alpha's fitness is %.15f.\n", current_iteration, wolves.size(), alpha->fitness);
+            printf("\rAt the end of %d iterations with %lu wolves, the alpha's fitness is %.15f.          ", current_iteration, wolves.size(), alpha->fitness);
         }
     }
     gsl_rng_free(rng);
