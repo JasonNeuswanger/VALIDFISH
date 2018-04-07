@@ -102,11 +102,8 @@ std::vector<double> Optimizer::optimize_forager() {
     alpha = &wolves[0];
     beta = &wolves[1];
     delta = &wolves[2];
-    printf("Initial alpha NREI is %.8f.\n", alpha->fitness);
-    printf("Initial beta NREI is %.8f.\n", beta->fitness);
-    printf("Initial delta NREI is %.8f.\n", delta->fitness);
+    printf("Initial NREIS are alpha=%.8f J, beta=%.8f J, delta=%.8f J.\n", alpha->fitness, beta->fitness, delta->fitness);
     const double exponent = (algorithm_use_exponential_decay) ? 2. : 1.;
-
     gsl_rng_default_seed = (unsigned long) time(nullptr);
     gsl_rng *rng = gsl_rng_alloc(gsl_rng_taus);
 
@@ -182,6 +179,7 @@ std::vector<double> Optimizer::optimize_forager() {
         }
     }
     gsl_rng_free(rng);
+    if (verbose) { printf("\n"); }
     // Update the initial forager object with the best solution
     update_forager_from_wolf(initial_forager, alpha);
     return alpha_fitnesses_by_step;
