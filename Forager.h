@@ -33,15 +33,14 @@
 #define QUAD_EPSREL 1e-0                // set precision, from 1e0 to 1e-3 or so (fast to slow)
 #define MEMOIZATION_PRECISION 1e-2      // spatial precision of the memoized caches, should be 0.01*QUAD_EPSREL or better
 #define GSL_ERROR_POLICY 0              // 0 to ignore GSL errors. 1 to print them but continue. 2 to abort (for debugging mode).
+#define DIAG_NOCACHE false              // Disable various internal caches (works MUCH more slowly if set to true)
+#define DIAG_NANCHECKS false            // If true, checks to make sure values aren't NaN when they shouldn't be. For debugging.
 
 class Forager : public Swimmer {
 
 private:
 
-    // Diagnostics / performance tracking
-
-    bool DIAG_NOCACHE = false;
-    bool DIAG_NANCHECKS = true;
+    // Performance tracking
     size_t denominator_integrand_evaluations = 0;
     size_t numerator_integrand_evaluations = 0;
 
@@ -52,7 +51,7 @@ private:
     double search_volume, set_size, search_rate, focal_velocity, focal_swimming_cost, angular_resolution;
 
     // Variables pertaining to characteristics of the environment
-    double surface_z, bottom_z, depth, bed_roughness, lambda_c, sigma_t, base_crypticity;
+    double surface_z, bottom_z, depth, bed_roughness, discriminability, sigma_t, tau_0;
 
     // Model parameters
     double delta_0; // Scales the effect of angular size on tau
@@ -60,6 +59,9 @@ private:
     double beta;    // Scales the effect of saccade time * set size on tau
     double Z_0;     // Scales the effect of spatial attention on tau; viewable as attentional capacity
     double c_1;     // Scales effect of feature-based attention and saccade time on discrimination
+
+    // Physiological constraints borrowed from the literature
+    double min_prey_length_from_gill_rakers, max_prey_length_from_mouth_gape;
 
     // Model design choices
     double exclude_unprofitable_maneuvers = true;
@@ -145,17 +147,18 @@ public:
             double surface_z,
             unsigned temperature,
             double bed_roughness,
-            double lambda_c,
+            double discriminability,
             double sigma_t,
-            double base_crypticity,
+            double tau_0,
             std::string *maneuver_interpolation_csv_base_path);
     Forager(Forager *otherForager);     // Copy constructor
     virtual ~Forager();                 // Destructor
 
     void modify_strategies(double radius, double theta, double mean_column_velocity, double saccade_time, double discrimination_threshold, std::vector<double> attention);
-    void modify_parameters(double delta_0, double alpha_0, double beta, double Z_0, double c_1);
+    void modify_parameters(double delta_0, double alpha_0, double beta, double Z_0, double c_1, double discriminability,
+                               double sigma_t, double tau_0);
     enum Strategy { s_radius, s_theta, s_mean_column_velocity, s_saccade_time, s_discrimination_threshold };
-    enum Parameter { p_delta_0, p_alpha_0, p_beta, p_Z_0, p_c_1 };
+    enum Parameter { p_delta_0, p_alpha_0, p_beta, p_Z_0, p_c_1, p_discriminability, p_sigma_t, p_tau_0 };
     void modify_strategy(Strategy strategy, double value);
     void modify_parameter(Parameter parameter, double value);
     void modify_bound(std::string field, double lower_bound, double upper_bound);
@@ -185,6 +188,7 @@ public:
     double get_foraging_attempt_rate();
     double get_proportion_of_attempts_ingested();
     double get_diet_proportion_for_prey_category(std::string *category_name);
+    double get_angular_resolution();
 
     // Geometry.cpp
 
@@ -198,7 +202,8 @@ public:
     void build_sample_prey_categories();
     size_t num_prey_categories();
     void add_prey_category(int number, std::string name, double mean_prey_length, double mean_prey_energy,
-                                    double crypticity_multiplier, double prey_drift_density, double debris_drift_density, double feature_size);
+                           double crypticity, double prey_drift_density, double debris_drift_density,
+                           double feature_size);
     void process_prey_category_changes();
 
     // Analysis.cpp -- functions for describing the forager for model testing.

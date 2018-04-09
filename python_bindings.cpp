@@ -45,6 +45,7 @@ PYBIND11_MODULE(pyvalidfish, m) {
             .def("get_foraging_attempt_rate", &Forager::get_foraging_attempt_rate)
             .def("get_proportion_of_attempts_ingested", &Forager::get_proportion_of_attempts_ingested)
             .def("get_diet_proportion_for_prey_category", &Forager::get_diet_proportion_for_prey_category)
+            .def("get_angular_resolution", &Forager::get_angular_resolution)
             .def("print_strategy", &Forager::print_strategy)
             .def("print_status", &Forager::print_status)
             .def("print_analytics", &Forager::print_analytics)

@@ -43,9 +43,12 @@ void Forager::build_sample_prey_categories() {
 }
 
 void Forager::add_prey_category(int number, std::string name, double mean_prey_length, double mean_prey_energy,
-                                double crypticity_multiplier, double prey_drift_density, double debris_drift_density, double feature_size) {
-    prey_categories.emplace_back(PreyCategory(number, name, mean_prey_length, mean_prey_energy, prey_drift_density,
-                                              debris_drift_density, feature_size, base_crypticity * crypticity_multiplier));
+                                double crypticity, double prey_drift_density, double debris_drift_density,
+                                double feature_size) {
+    if ((min_prey_length_from_gill_rakers < mean_prey_length) && (mean_prey_length < max_prey_length_from_mouth_gape)) {
+        prey_categories.emplace_back(PreyCategory(number, name, mean_prey_length, mean_prey_energy, prey_drift_density,
+                                                  debris_drift_density, feature_size, crypticity));
+    }
 }
 
 void Forager::process_prey_category_changes() {

@@ -5,7 +5,6 @@
 
 int main() {
 
-    //auto maneuver_interpolation_path = std::experimental::filesystem::path("/Users/Jason/Dropbox/Drift Model Project/Calculations/driftmodeldev/maneuver-model-tables/");
     std::string maneuver_interpolation_path = "/Users/Jason/Dropbox/Drift Model Project/Calculations/driftmodeldev/maneuver-model-tables/";
 
     Forager *forager;
@@ -16,7 +15,7 @@ int main() {
                     0.2,    // mean_column_velocity
                     0.3,    // saccade_time
                     0.8,    // discrimination_threshold
-                    5.0,    // delta_0
+                    1.0,    // delta_0
                     0.1,    // alpha_0
                     0.003,  // Z_0
                     0.3,    // c_1
@@ -25,9 +24,9 @@ int main() {
                     0.3,    // surface_z
                     11,     // temperature (integer)
                     0.05,   // bed_roughness
-                    1.0,    // lambda_c
+                    1.0,    // discriminability
                     0.5,    // sigma_t
-                    0.3,    // base_crypticity
+                    0.3,    // tau_0
                     &maneuver_interpolation_path
     );
     forager->build_sample_prey_categories();
@@ -37,8 +36,8 @@ int main() {
 
     Optimizer *optimizer;
     bool verbose = true;
-    int n_iterations = 2000;
-    int pack_size = 16;
+    int n_iterations = 30;
+    int pack_size = 15;
     optimizer = new Optimizer(forager, n_iterations, pack_size, verbose);
     optimizer->optimize_forager();
     opt_timer.stop();

@@ -20,9 +20,9 @@ Forager::Forager(double fork_length_cm,
                  double surface_z,
                  unsigned temperature_C,
                  double bed_roughness,
-                 double lambda_c,
+                 double discriminability,
                  double sigma_t,
-                 double base_crypticity,
+                 double tau_0,
                  std::string *maneuver_interpolation_csv_base_path)
         : Swimmer(fork_length_cm, mass_g, temperature_C, maneuver_interpolation_csv_base_path){
 
@@ -39,20 +39,26 @@ Forager::Forager(double fork_length_cm,
     this->mean_column_velocity = mean_column_velocity; assert(this->mean_column_velocity > 0); // mean column velocity in m/s
     this->saccade_time = saccade_time;
     this->discrimination_threshold = discrimination_threshold;
-    // Model parameters
+    // Model parameters that describe the fish's capabilities and need to be calibrated
     this->delta_0 = delta_0;
     this->alpha_0 = alpha_0;
     this->Z_0 = Z_0;
     this->c_1 = c_1;
     this->beta = beta;
+    // Model parameters that describe the prey overall in unknown ways that need to be calibrated
+    this->discriminability = discriminability;
+    this->sigma_t = sigma_t;
+    this->tau_0 = tau_0;
     // Habitat variables
     this->bottom_z = bottom_z; assert(bottom_z < 0);             // river bottom z-coordinate in m (must be < 0)
     this->surface_z = surface_z; assert(surface_z > 0);          // river surface z-coordinate in m (must be > 0)
     this->bed_roughness = bed_roughness;                         // bed roughness height in m
-    this->lambda_c = lambda_c;
-    this->sigma_t = sigma_t;
-    this->base_crypticity = base_crypticity;
     this->depth = surface_z - bottom_z;
+    // Physiological constraints from the literature, from from Wankowski (1979) as adapted by Hayes et al (2000)
+    // Unlike other models, we don't truncated prey classes to suit these lengths; they're either excluded or not,
+    // based on the mean size of prey in the category.
+    this->min_prey_length_from_gill_rakers = 0.000115 * this->fork_length_cm;        // converted to m
+    this->max_prey_length_from_mouth_gape = 0.00105 * this->fork_length_cm * 4.3;    // same
     set_bounds();
 }
 
@@ -69,12 +75,14 @@ Forager::Forager(Forager *otherForager) : Swimmer(*otherForager) {
     Z_0 = otherForager->Z_0;
     c_1 = otherForager->c_1;
     beta = otherForager->beta;
+    // Model parameters that describe the prey overall in unknown ways that need to be calibrated
+    discriminability = otherForager->discriminability;
+    sigma_t = otherForager->sigma_t;
+    tau_0 = otherForager->tau_0;
     // Habitat variables
     bottom_z = otherForager->bottom_z;
     surface_z = otherForager->surface_z;
     bed_roughness = otherForager->bed_roughness;
-    lambda_c = otherForager->lambda_c;
-    sigma_t = otherForager->sigma_t;
     depth = surface_z - bottom_z;
     // Additional initialization
     for (auto &pc : otherForager->prey_categories) {
@@ -153,12 +161,16 @@ void Forager::modify_strategies(double radius,
     process_parameter_updates();
 }
 
-void Forager::modify_parameters(double delta_0, double alpha_0, double beta, double Z_0, double c_1) {
+void Forager::modify_parameters(double delta_0, double alpha_0, double beta, double Z_0, double c_1, double discriminability,
+                                double sigma_t, double tau_0) {
     this->delta_0 = delta_0;
     this->alpha_0 = alpha_0;
     this->beta = beta;
     this->Z_0 = Z_0;
     this->c_1 = c_1;
+    this->discriminability = discriminability;
+    this->sigma_t = sigma_t;
+    this->tau_0 = tau_0;
     process_parameter_updates();
 }
 
@@ -180,6 +192,9 @@ void Forager::modify_parameter(Parameter parameter, double value) {
         case p_beta: beta = value; break;
         case p_Z_0: Z_0 = value; break;
         case p_c_1: c_1 = value; break;
+        case p_discriminability: discriminability = value; break;
+        case p_sigma_t: sigma_t = value; break;
+        case p_tau_0: tau_0 = value; break;
     }
     process_parameter_updates();
 }
@@ -194,7 +209,7 @@ double Forager::tau(double t, double x, double z, PreyCategory *pc) {
     if (angular_size < angular_resolution) { return INFINITY; }
     const double maneuver_v = (v + focal_velocity) / 2;
     if (exclude_unprofitable_maneuvers && maneuver_cost(x, y, z, maneuver_v, true) > pc->energy_content) { return INFINITY; }
-    double retval = pc->crypticity * (1 + beta * saccade_time * set_size)
+    double retval = tau_0 * pc->crypticity * (1 + beta * saccade_time * set_size)
                           * (1 + alpha_0 / pc->get_feature_alpha())
                           * (1 + delta_0 / angular_size)
                           * (1 + search_rate / Z_0);
@@ -268,7 +283,7 @@ void Forager::compute_discrimination_probabilities() {
             perceptual_sigma = sqrt(gsl_pow_2(sigma_t) + gsl_pow_2(c_1 / sqrt(pc.get_feature_alpha() * saccade_time)));
         }
         pc.false_positive_probability = 1 - gsl_cdf_gaussian_P(discrimination_threshold / perceptual_sigma, 1);
-        pc.true_hit_probability = 1 - gsl_cdf_gaussian_P((discrimination_threshold - lambda_c) / perceptual_sigma, 1);
+        pc.true_hit_probability = 1 - gsl_cdf_gaussian_P((discrimination_threshold - discriminability) / perceptual_sigma, 1);
     }
 }
 
@@ -293,13 +308,13 @@ double Forager::mean_maneuver_cost(double x, double z, PreyCategory *pc, bool is
             ++mean_maneuver_cost_cache_hits;
         }
     }
-    if (DIAG_NANCHECKS) assert(isfinite(result));
+    if (DIAG_NANCHECKS) { assert(isfinite(result)); }
     return result;
 }
 
 double Forager::RateOfEnergyIntake(bool is_net) {
+    assert(num_prey_categories() > 0);
     double x, y; // temporary holder for x values (y is required but unused) during the integrations
-
     auto numerator_integrand = [this, is_net](double z, double *y, double *x)->double{
         ++numerator_integrand_evaluations;
         double sum = 0;

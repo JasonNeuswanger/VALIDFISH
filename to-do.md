@@ -1,40 +1,30 @@
-# To make fish only pursue profitable maneuvers
+# Bugs
 
-* Gill raker limitations -- just exclude prey types beyond gill raker limits straight-up.
+* Am I mixing angular area (described in manuscript) with angular width, with respect to either angular resolution or the angular size equation?
 
-* Note: we have fish just not detect prey if it would be unprofitable to pursue on a per-encounter basis. That's the easiest place to build it into the model in a single spot without messing up anything else.
+# Functionality to add
+
+* Make sure velocity and other variables can be fixed by the user rather than optimized. Right now I just optimize all-or-nothing.
+
+# Possibilities to consider
 
 * Is there any way to make visual acuity reflect variation in the size of items in a prey class? So some proportion of them is detectable, based on whatever proportion of them would have a given angular size, without having abrupt transitions?
 
-# Remaining additions
-
-  
-* Maybe try binary masks for maneuvers and visual acuity that I can use to limit foraging and also turn them on and off to see how limiting those factors are?
-  
-# Other 
-
-* Make sure velocity can be specified by user rather than optimized. Ideally, make this generalizable
-to optimize and not optimize any combination of variables.
-* Revisit customizing cache spatial resolution to fish size
-
-* Maybe make maneuver cost calls interpolate between the two nearest velocities rather than rounding to the nearest one -- although a max difference of 2.5 cm/s really isn't all that important.
-
-# Things to check
-
-# Printouts
-
-* Make a printout of an optimized maneuver say if it's hitting bounds.
-
-## Minor speed tweaks maybe
-
-* Have the integrands check for detection probability 0, energy value 0, etc, and skip the expensive evaluations in those cases
-
 ## Convenience / low priority / when distracted
 
-* Make getters and arrange public/private
-* Move DIAG variables into compile-time macros when code is finalized
+* Make more getters and arrange public/private classifications more carefully
 
-# Links
+# Notes on things to add to manuscript
+
+* We have fish just not detect prey if it would be unprofitable to pursue on a per-encounter basis. That's the easiest place to build it into the model in a single spot without messing up anything else.
+
+* Added gill raker / mouth gape constraints as per previous drift feeding models, except prey types aren't truncated by constraints but fully included/excluded based on their average size. This assumes prey types are divided finely enough that the lack of truncation doesn't represent a major rounding error.
+
+* Mention tau_0 as an index of the fish's aptitude and crypticity as a multiplier on it.
+
+* Write up the angular resolution constraint.
+
+# Useful links
 
 * C optimization tips https://people.cs.clemson.edu/~dhouse/courses/405/papers/optimize.pdf
 
@@ -58,8 +48,4 @@ to optimize and not optimize any combination of variables.
 * comparative study of nature-based algorithms from 2017... journal / scihub website down though https://www.researchgate.net/publication/320461544_A_Comparative_Study_on_Recently-Introduced_Nature-Based_Global_Optimization_Methods_in_Complex_Mechanical_System_Design
 
 * evoloPy for if I want to do the optimization in Python https://github.com/7ossam81/EvoloPy
-
-# Final calibration of model parameters
-
-* Multi-objective optimization for pareto-optimal solutions? https://en.wikipedia.org/wiki/Pareto_efficiency
 

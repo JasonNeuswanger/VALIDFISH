@@ -14,7 +14,6 @@ PreyCategory::PreyCategory(int number,                    // Unique number for s
                            double _debris_drift_density,    // debris drift density in items/m3
                            double _feature_size,            // size as a proportion of feature space
                            double _crypticity) {            // unitless crypticity
-    //uniqueid = ++category_count;
     uniqueid = number;
     name = _name;
     length = _length;
@@ -33,7 +32,6 @@ PreyCategory::PreyCategory(int number,                    // Unique number for s
 
 PreyCategory::PreyCategory(PreyCategory *otherPreyCategory) {
     /* Creates a deep copy of another prey category, for use deep copying fish */
-    //uniqueid = ++category_count;
     uniqueid = otherPreyCategory->uniqueid;
     name = otherPreyCategory->name;
     length = otherPreyCategory->length;

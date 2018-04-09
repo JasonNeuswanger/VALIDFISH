@@ -47,3 +47,7 @@ double Forager::get_diet_proportion_for_prey_category(std::string *category_name
         return pc->get_diet_proportion();
     }
 }
+
+double Forager::get_angular_resolution() {
+    return angular_resolution;
+}

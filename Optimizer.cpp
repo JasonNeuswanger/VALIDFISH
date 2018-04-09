@@ -22,7 +22,7 @@ Optimizer::Optimizer(Forager *_initial_forager, size_t _max_iterations, size_t _
 void Optimizer::set_algorithm_options(bool use_chaos, bool use_dynamic_C, bool use_exponential_decay, bool use_levy,
                                       bool use_only_alpha, bool use_weighted_alpha) {
     algorithm_use_chaos = use_chaos;                            // Chaotic Gray Wolf Optimization (Kohli & Arora 2017)
-    algorithm_use_dynamic_C = use_dynamic_C;                    // Improved Grey Wolf Algorithm (Kumar et al 2016) -- only one worth keeping so far
+    algorithm_use_dynamic_C = use_dynamic_C;                    // Improved Grey Wolf Algorithm (Kumar et al 2016)
     algorithm_use_exponential_decay = use_exponential_decay;    // Modified Grey Wolf Optimizer (Mittal et al 2016)
     algorithm_use_levy = use_levy;                              // Levy Flight enhancement for GWO (Luo et al 2017)
     algorithm_use_only_alpha = use_only_alpha;                  // Enhanced Grey Wolf Optimization (Joshi & Arora 2017)
@@ -158,12 +158,14 @@ std::vector<double> Optimizer::optimize_forager() {
         calculate_wolf_fitnesses();
 
         // Note which wolves are the alpha, beta, and delta (top three) in this round.
+        bool updated_alpha = false;
         if (current_iteration > 0) {
             for (auto &wolf : wolves) {
                 if (wolf.fitness > alpha->fitness) {
                     delta = beta;
                     beta = alpha;
                     alpha = &wolf;
+                    updated_alpha = true;
                 } else if (wolf.fitness > beta->fitness) {
                     delta = beta;
                     beta = &wolf;
@@ -174,8 +176,8 @@ std::vector<double> Optimizer::optimize_forager() {
         }
         alpha_fitnesses_by_step.emplace_back(alpha->fitness);
         current_iteration += 1;
-        if (verbose) {
-            printf("\rAt the end of %d iterations with %lu wolves, the alpha's fitness is %.15f.          ", current_iteration, wolves.size(), alpha->fitness);
+        if (verbose and updated_alpha) {
+            printf("At the end of %d iterations with %lu wolves, the alpha's fitness is %.15f.          \n", current_iteration, wolves.size(), alpha->fitness);
         }
     }
     gsl_rng_free(rng);
