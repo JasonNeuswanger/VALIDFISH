@@ -44,7 +44,7 @@ include_directories(/Users/Jason/anaconda/envs/driftmodelenv/include/python3.5m)
 add_subdirectory(third-party/pybind11)
 pybind11_add_module(pyvalidfish python_bindings.cpp ${SOURCES}) # should include all the source files eventually
 target_link_libraries(pyvalidfish PRIVATE ${LIBRARIES_TO_LINK})
-target_compile_options(pyvalidfish PRIVATE -O3 -march=native -flto)
+target_compile_options(pyvalidfish PRIVATE -O3) # -march=native -flto)
 
 # The inclusion of /usr/local/gcc-7.3/lib/libstdc++fs.a in target_link_libraries is to make experimental::filesystem work.
 
