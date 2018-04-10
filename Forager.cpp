@@ -23,6 +23,7 @@ Forager::Forager(double fork_length_cm,
                  double discriminability,
                  double sigma_t,
                  double tau_0,
+                 double t_V,
                  std::string *maneuver_interpolation_csv_base_path)
         : Swimmer(fork_length_cm, mass_g, temperature_C, maneuver_interpolation_csv_base_path){
 
@@ -45,6 +46,7 @@ Forager::Forager(double fork_length_cm,
     this->Z_0 = Z_0;
     this->c_1 = c_1;
     this->beta = beta;
+    this->t_V = t_V;
     // Model parameters that describe the prey overall in unknown ways that need to be calibrated
     this->discriminability = discriminability;
     this->sigma_t = sigma_t;
@@ -75,6 +77,7 @@ Forager::Forager(Forager *otherForager) : Swimmer(*otherForager) {
     Z_0 = otherForager->Z_0;
     c_1 = otherForager->c_1;
     beta = otherForager->beta;
+    t_V = otherForager->t_V;
     // Model parameters that describe the prey overall in unknown ways that need to be calibrated
     discriminability = otherForager->discriminability;
     sigma_t = otherForager->sigma_t;
@@ -162,7 +165,7 @@ void Forager::modify_strategies(double radius,
 }
 
 void Forager::modify_parameters(double delta_0, double alpha_0, double beta, double Z_0, double c_1, double discriminability,
-                                double sigma_t, double tau_0) {
+                                double sigma_t, double tau_0, double t_V) {
     this->delta_0 = delta_0;
     this->alpha_0 = alpha_0;
     this->beta = beta;
@@ -195,6 +198,7 @@ void Forager::modify_parameter(Parameter parameter, double value) {
         case p_discriminability: discriminability = value; break;
         case p_sigma_t: sigma_t = value; break;
         case p_tau_0: tau_0 = value; break;
+        case p_t_V: t_V = value; break;
     }
     process_parameter_updates();
 }
@@ -266,7 +270,7 @@ void Forager::compute_set_size(bool verbose) {
 }
 
 void Forager::compute_search_rate() {
-    double volume_component = search_volume;
+    double volume_component = search_volume / t_V;
     auto velocity_xz = [this](double z)->double{ return water_velocity(z); };
     gsl_function_pp<decltype(velocity_xz)> Fp(velocity_xz);
     gsl_function *F = static_cast<gsl_function*>(&Fp);

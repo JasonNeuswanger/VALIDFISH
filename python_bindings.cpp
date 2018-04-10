@@ -23,7 +23,7 @@ PYBIND11_MODULE(pyvalidfish, m) {
 
     py::class_<Forager> forager(m, "Forager");
     forager.def(py::init<double, double, double, double, double, double, double, double, double, double, double, double,
-                    double, double, unsigned, double, double, double, double, std::string*>())
+                    double, double, unsigned, double, double, double, double, double, std::string*>())
             .def("NREI", &Forager::NREI)
             .def("GREI", &Forager::GREI)
             .def("modify_strategy", &Forager::modify_strategy)

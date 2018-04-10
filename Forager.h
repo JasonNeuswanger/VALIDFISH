@@ -59,6 +59,7 @@ private:
     double beta;    // Scales the effect of saccade time * set size on tau
     double Z_0;     // Scales the effect of spatial attention on tau; viewable as attentional capacity
     double c_1;     // Scales effect of feature-based attention and saccade time on discrimination
+    double t_V;     // Scales relative effect of existing search volume vs incoming water volume on search rate
 
     // Physiological constraints borrowed from the literature
     double min_prey_length_from_gill_rakers, max_prey_length_from_mouth_gape;
@@ -150,15 +151,16 @@ public:
             double discriminability,
             double sigma_t,
             double tau_0,
+            double t_V,
             std::string *maneuver_interpolation_csv_base_path);
     Forager(Forager *otherForager);     // Copy constructor
     virtual ~Forager();                 // Destructor
 
     void modify_strategies(double radius, double theta, double mean_column_velocity, double saccade_time, double discrimination_threshold, std::vector<double> attention);
     void modify_parameters(double delta_0, double alpha_0, double beta, double Z_0, double c_1, double discriminability,
-                               double sigma_t, double tau_0);
+                               double sigma_t, double tau_0, double t_V);
     enum Strategy { s_radius, s_theta, s_mean_column_velocity, s_saccade_time, s_discrimination_threshold };
-    enum Parameter { p_delta_0, p_alpha_0, p_beta, p_Z_0, p_c_1, p_discriminability, p_sigma_t, p_tau_0 };
+    enum Parameter { p_delta_0, p_alpha_0, p_beta, p_Z_0, p_c_1, p_discriminability, p_sigma_t, p_tau_0, p_t_V };
     void modify_strategy(Strategy strategy, double value);
     void modify_parameter(Parameter parameter, double value);
     void modify_bound(std::string field, double lower_bound, double upper_bound);

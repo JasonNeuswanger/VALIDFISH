@@ -27,6 +27,7 @@ int main() {
                     1.0,    // discriminability
                     0.5,    // sigma_t
                     0.3,    // tau_0
+                    0.5,    // t_V
                     &maneuver_interpolation_path
     );
     forager->build_sample_prey_categories();
