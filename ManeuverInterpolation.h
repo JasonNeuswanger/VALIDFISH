@@ -12,7 +12,7 @@
 #include <gsl/gsl_spline2d.h>
 #include <gsl/gsl_errno.h>
 
-#include "third-party/fast-cpp-csv-parser/csv.h"
+#include "lib/fast-cpp-csv-parser/csv.h"
 
 #define HOPELESS_MANEUVER_ENERGY_COST 100          // Values to return when an interpolation is not available becaue the
 #define HOPELESS_MANEUVER_PURSUIT_DURATION 100     // fish probably can't maneuver under the requested conditions.

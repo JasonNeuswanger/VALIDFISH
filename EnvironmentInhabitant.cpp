@@ -11,53 +11,75 @@ void Forager::compute_focal_velocity() {
 double Forager::water_velocity(double z) {
     /* I tested water velocity below with a cache, but the cache hits took 30-50 % longer than just recalculating. */
     double k = bed_roughness * 1000;       // bed roughness height in mm
-    double R = depth;                      // hydraulic radius in m, approximated as depth, as per Hayes et al 2007
+    double R = depth;                      // hydraulic delta_min in m, approximated as depth, as per Hayes et al 2007
     double H = 0.001 + surface_z - z;      //  distance of z position below the surface, in m; adding 1 mm to avoid infinite velocity at surface
     double vstar = mean_column_velocity / (5.75 * log10(12.27 * R / k));  // # Stream Hydrology: An Introduction for Ecologists eqn 6.50
     return 5.75 * log10(30 * H / k) * vstar;  // Hayes et al 2007 eqn 1
 }
 
-void Forager::normalize_feature_sizes() {
-    double total_feature_size = 0;
-    for (auto & pc : prey_categories) {
-        total_feature_size += pc.feature_size;
-    }
-    for (auto & pc : prey_categories) {
-        pc.feature_size = pc.feature_size / total_feature_size;
-    }
+void Forager::build_sample_prey_types() {
+    add_prey_type(1, "1 mm class",   0.001,  -1, 1, 30,    50000, false);
+    add_prey_type(2, "2 mm class",   0.002,  -1, 1, 9,     3000,  false);
+    add_prey_type(3, "3-4 mm class", 0.0035, -1, 1, 4,     700,   false);
+    add_prey_type(4, "5-7 mm class", 0.006,  -1, 1, 0.15,  125,   false);
+    add_prey_type(5, "8+ mm class",  0.01,   -1, 1, 0.015, 30,    false);
+    process_prey_type_changes();
 }
 
-void Forager::evenly_distribute_attention() {
-    for (auto & pc : prey_categories) {
-        pc.set_attention_allocated(pc.feature_size);
-    }
-}
-
-void Forager::build_sample_prey_categories() {
-    add_prey_category(1, "1 mm class", 0.001, -1, 1.0, 30, 50000, 0.2);
-    add_prey_category(2, "2 mm class", 0.002, -1, 1.0, 9, 3000, 0.2);
-    add_prey_category(3, "3-4 mm class", 0.0035, -1, 1.0, 4, 700, 0.2);
-    add_prey_category(4, "5-7 mm class", 0.006, -1, 1.0, 0.15, 125, 0.2);
-    add_prey_category(5, "8+ mm class", 0.01, -1, 1.0, 0.015, 30, 0.2);
-    process_prey_category_changes();
-}
-
-void Forager::add_prey_category(int number, std::string name, double mean_prey_length, double mean_prey_energy,
-                                double crypticity, double prey_drift_density, double debris_drift_density,
-                                double feature_size) {
+void Forager::add_prey_type(int number, std::string name, double mean_prey_length, double mean_prey_energy,
+                            double crypticity, double prey_drift_concentration, double debris_drift_concentration,
+                            bool search_image_eligible) {
     if ((min_prey_length_from_gill_rakers < mean_prey_length) && (mean_prey_length < max_prey_length_from_mouth_gape)) {
-        prey_categories.emplace_back(PreyCategory(number, name, mean_prey_length, mean_prey_energy, prey_drift_density,
-                                                  debris_drift_density, feature_size, crypticity));
+        auto pt = std::make_shared<PreyType>(number, name, mean_prey_length, mean_prey_energy, prey_drift_concentration,
+                                             debris_drift_concentration, search_image_eligible, crypticity);
+        prey_types.push_back(pt);
+//        prey_types.emplace_back(PreyType(number, name, mean_prey_length, mean_prey_energy, prey_drift_concentration,
+//                                         debris_drift_concentration, search_image_eligible, crypticity));
     }
 }
 
-void Forager::process_prey_category_changes() {
-    normalize_feature_sizes();
-    evenly_distribute_attention();
-    std::sort(prey_categories.begin(), prey_categories.end());
+void Forager::process_prey_type_changes() {
+    std::sort(prey_types.begin(), prey_types.end());
+    // How mapping search image value (a double between -1 and 1) onto prey types works:
+    // This is a bit messy because it's a categorical variable but optimization with the Grey Wolf algorithm will
+    // work best if it's represented as a single continuous variable. Therefore, we map values from -1 to 0 onto
+    // a "no search image" strategy. Values from 0 to 1 are divided at even intervals among the prey types eligible
+    // for search images. This gives the algorithm the best chance of considering all the strategies.
+    std::vector<PreyType *> search_image_eligible_prey_types;
+    for (auto & pt : prey_types) {
+        if (pt.search_image_eligible) {
+            search_image_eligible_prey_types.push_back(&pt);
+        }
+    }
+    size_t n_eligible_types = search_image_eligible_prey_types.size();
+    if (search_image > 0 && n_eligible_types > 0) {
+        for (auto & pt : prey_types) {
+            pt.search_image_status = PreyType::SearchImageStatus::search_image_exclusion;   // exclude all types
+        }
+        double threshold_increment = 1.0 / n_eligible_types;                                // then include the right one
+        for (int i=0; i<n_eligible_types; i++) {
+            if (i*threshold_increment < search_image && search_image < (i+1)*threshold_increment) {
+                search_image_eligible_prey_types[i]->search_image_status = PreyType::SearchImageStatus::search_image_target;
+            }
+        }
+    } else {
+        for (auto & pt : prey_types) {
+            pt.search_image_status = PreyType::SearchImageStatus::no_search_image;
+        }
+    }
     process_parameter_updates();
 }
 
-size_t Forager::num_prey_categories() {
-    return prey_categories.size();
+size_t Forager::num_prey_types() {
+    return prey_types.size();
+}
+
+size_t Forager::num_search_image_eligible_prey_types() {
+    size_t count = 0;
+    for (auto & pt : prey_types) {
+        if (pt.search_image_eligible) {
+            count++;
+        }
+    }
+    return count;
 }

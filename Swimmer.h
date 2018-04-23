@@ -47,7 +47,7 @@ public:
 
     /* After creating a swimmer object, you can't directly modify its mass, temperature, etc., because modifying
      * any of those requires recalculating a bunch of other things. Instead, there's a general setter function
-     * modify_parameters() to modify any/all parameters at once and then do all the required updates. */
+     * set_parameters() to modify any/all parameters at once and then do all the required updates. */
 
     void modify_parameters(double fork_length_cm,
                            double mass_g,

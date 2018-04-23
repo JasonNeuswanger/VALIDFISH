@@ -7,7 +7,7 @@
 
 #include <bitset>
 #include <cmath>
-#include "PreyCategory.h"
+#include "PreyType.h"
 #include "Forager.h"
 #include <gsl/gsl_errno.h>
 #include <random>
@@ -17,7 +17,7 @@
 
 double cot(double x);
 
-long long xzpciec_hash_key(double x, double z, PreyCategory *pc, bool is_energy_cost);
+long long xzpciec_hash_key(double x, double z, PreyType *pc, bool is_energy_cost);
 
 void print_gsl_errors(const char * reason, const char * file, int line, int gsl_errno);
 void ignore_gsl_errors(const char * reason, const char * file, int line, int gsl_errno);
@@ -28,6 +28,6 @@ cartesian_3D_coords cartesian_from_spherical(double rho, double theta, double ph
 
 double fRand(double fMin, double fMax);
 
-double trim_to_bounds(double value, double bounds[2]);
+double trim_to_bounds(double value, std::array<double,2>bounds);
 
 #endif //DRIFTMODELC_UTILITY_H

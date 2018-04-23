@@ -8,42 +8,53 @@ int main() {
     std::string maneuver_interpolation_path = "/Users/Jason/Dropbox/Drift Model Project/Calculations/driftmodeldev/maneuver-model-tables/";
 
     Forager *forager;
-    forager = new Forager(-1,     // fork length in cm; set to -1 to use a length-mass regression instead
-                    0.8,    // mass
-                    0.2,    // radius
-                    3.0,    // theta
-                    0.2,    // mean_column_velocity
-                    0.3,    // saccade_time
-                    0.8,    // discrimination_threshold
-                    1.0,    // delta_0
-                    0.1,    // alpha_0
-                    0.003,  // Z_0
-                    0.3,    // c_1
-                    0.1,    // beta
-                   -0.1,    // bottom_z
-                    0.3,    // surface_z
-                    11,     // temperature (integer)
-                    0.05,   // bed_roughness
-                    1.0,    // discriminability
-                    0.5,    // sigma_t
-                    0.3,    // tau_0
-                    0.5,    // t_V
-                    &maneuver_interpolation_path
-    );
-    forager->build_sample_prey_categories();
+
+//    X = delta_0=1.030e-08, beta=1.295e-01, theta_0=4.827, t_s_0=1.061, discriminability=3.044, flicker_frequency=0.100, tau_0=7.787, nu=1.684e-12.
+
+
+    forager = new Forager(  -1,     // double fork_length_cm,
+                            0.8,    // double mass_g,
+                            0.02,   // double delta_min,
+                            1.0,    // double sigma_A
+                            0.20,   // double mean_column_velocity,
+                            0.2,    // double saccade_time,
+                            2.0,    // double discrimination_threshold,
+                            -1,     // double search_image,
+                            1e-4,   // double delta_0,
+                            10,     // double alpha_tau,
+                            10,     // double alpha_d,
+                            0.05,   // double A_0,
+                            0.1,    // double t_s_0,
+                            0.5,    // double beta,
+                            -0.1,   // double bottom_z,
+                            0.3,    // double surface_z,
+                            11,     // unsigned temperature,
+                            0.05,   // double bed_roughness,
+                            1.0,    // double discriminability,
+                            0.1,    // double tau_0,
+                            30,     // double flicker_frequency,
+                            1e-3,  //double nu,
+                            &maneuver_interpolation_path);
+    forager->build_sample_prey_types();
     printf("Forager NREI is %.6f.\n", forager->NREI());
 
-    ExecutionTimer<std::chrono::milliseconds> opt_timer("Optimization time: ");
+    // current test value: Forager NREI is 0.025479.
 
-    Optimizer *optimizer;
-    bool verbose = true;
-    int n_iterations = 30;
-    int pack_size = 15;
-    optimizer = new Optimizer(forager, n_iterations, pack_size, verbose);
-    optimizer->optimize_forager();
-    opt_timer.stop();
+    PreyType *test_pt = forager->get_prey_type("2 mm class");
 
-    forager->print_strategy();
-    forager->print_status();
+    forager->spatial_detection_proportions(test_pt, "All", true);
+
+//    ExecutionTimer<std::chrono::milliseconds> opt_timer("Optimization time: ");
+//
+//    Optimizer *optimizer;
+//    bool verbose = true;
+//    size_t n_iterations = 50;
+//    size_t pack_size = 7;
+//    optimizer = new Optimizer(forager, n_iterations, pack_size, verbose);
+//    optimizer->set_algorithm_options(false, false, false, false, false, true);
+//    optimizer->optimize_forager();
+//    opt_timer.stop();
+//    forager->print_strategy();
+//    forager->print_status();
 
 }

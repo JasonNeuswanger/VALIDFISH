@@ -10,7 +10,7 @@ double cot(double x) {
     return c / s;
 }
 
-long long xzpciec_hash_key(double x, double z, PreyCategory *pc, bool is_energy_cost) {
+long long xzpciec_hash_key(double x, double z, PreyType *pc, bool is_energy_cost) {
     /* This function works by getting 16-bit binary integer representations of each input parameter and
      * concatenating them into a single 64-bit (long long) binary representation of a new integer for the key. */
     long long intx = (long) round(x / MEMOIZATION_PRECISION);
@@ -46,7 +46,7 @@ double fRand(double fMin, double fMax)
     return fMin + f * (fMax - fMin);
 }
 
-double trim_to_bounds(double value, double bounds[2]) {
+double trim_to_bounds(double value, std::array<double,2>bounds) {
     if (bounds[0] <= value && value <= bounds[1]) {
         return value;
     } else if (value < bounds[0]) {

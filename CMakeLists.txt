@@ -14,34 +14,34 @@ set(SOURCES
     EnvironmentInhabitant.cpp
     Geometry.cpp
     Analysis.cpp
-    PreyCategory.cpp PreyCategory.h
+    PreyType.cpp PreyType.h
     Swimmer.cpp Swimmer.h
     ManeuverInterpolation.cpp ManeuverInterpolation.h
     Optimizer.cpp Optimizer.h
     utility.h utility.cpp
-    third-party/gsl_function_pp.h
-    third-party/fast-cpp-csv-parser/csv.h
-    third-party/flat_hash_map.hpp
+    lib/gsl_function_pp.h
+    lib/fast-cpp-csv-parser/csv.h
+    lib/flat_hash_map.hpp
     ForagerGetters.cpp
-    Printing.cpp)
+    Printing.cpp DetectionSubmodel.cpp)
 
 find_package(GSL REQUIRED)
 find_package(Threads REQUIRED)
 
 set(LIBRARIES_TO_LINK GSL::gsl GSL::gslcblas stdc++fs Threads::Threads)
 
-include_directories("/Users/Jason/Dropbox/Drift Model Project/Calculations/VALIDFISH/VALIDFISH/third-party/eigen")
+include_directories("/Users/Jason/Dropbox/Drift Model Project/Calculations/VALIDFISH/VALIDFISH/lib/eigen")
 
 # GENERATE THE EXECUTABLE BINARY VERSION OF THE MODEL
 
-add_executable(validfish main.cpp ${SOURCES} third-party/ExecutionTimer.h)
+add_executable(validfish main.cpp ${SOURCES} lib/ExecutionTimer.h)
 target_link_libraries(validfish ${LIBRARIES_TO_LINK})
 
 # GENERATE THE PYTHON LIBRARY VERSION OF THE MODEL
 
 set(PYBIND11_CPP_STANDARD -std=c++1z) # use experimental c++17
 include_directories(/Users/Jason/anaconda/envs/driftmodelenv/include/python3.5m) # for Python.h
-add_subdirectory(third-party/pybind11)
+add_subdirectory(lib/pybind11)
 pybind11_add_module(pyvalidfish python_bindings.cpp ${SOURCES}) # should include all the source files eventually
 target_link_libraries(pyvalidfish PRIVATE ${LIBRARIES_TO_LINK})
 target_compile_options(pyvalidfish PRIVATE -O3) # -march=native -flto)

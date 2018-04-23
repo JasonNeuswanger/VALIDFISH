@@ -1,12 +1,16 @@
-# Bugs
-
-* Am I mixing angular area (described in manuscript) with angular width, with respect to either angular resolution or the angular size equation?
-
 # Functionality to add
+
+* Add validation of all strategies and parameters to fit within bounds at initialization and in setters.
 
 * Make sure velocity and other variables can be fixed by the user rather than optimized. Right now I just optimize all-or-nothing.
 
+* Finish coding 'manipulation' functionality, including other types of manipulations -- like what?
+
+* Am I considering assimilable energy content anywhere?
+
 # Possibilities to consider
+
+* Consider adding a term for loom if reaction fields are still misbehaving. That should favor close items.
 
 * Is there any way to make visual acuity reflect variation in the size of items in a prey class? So some proportion of them is detectable, based on whatever proportion of them would have a given angular size, without having abrupt transitions?
 
@@ -14,13 +18,15 @@
 
 * Make more getters and arrange public/private classifications more carefully
 
+* Remove all treatment of sigma_t as a parameter and make it a constant, unless I want to be forward-compatible
+
 # Notes on things to add to manuscript
 
-* We have fish just not detect prey if it would be unprofitable to pursue on a per-encounter basis. That's the easiest place to build it into the model in a single spot without messing up anything else.
+* We have fish just not detect prey if it would be unprofitable to pursue on a per-encounter basis. That's the easiest place to build it into the model in a single spot without messing up anything else. Also note that this is based on expected profit from the prey including chance it might be debris.
 
 * Added gill raker / mouth gape constraints as per previous drift feeding models, except prey types aren't truncated by constraints but fully included/excluded based on their average size. This assumes prey types are divided finely enough that the lack of truncation doesn't represent a major rounding error.
 
-* Mention tau_0 as an index of the fish's aptitude and crypticity as a multiplier on it.
+* Mention flicker_frequency as an index of the fish's aptitude and crypticity as a multiplier on it.
 
 * Write up the angular resolution constraint.
 

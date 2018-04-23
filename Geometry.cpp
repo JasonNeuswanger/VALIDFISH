@@ -61,7 +61,7 @@ double volume_integrand_outer(double phi, void *params) {
 double Forager::integrate_over_volume(gsl_function *func, double min_rho, double max_rho, double min_theta, double max_theta) {
     /* Integrates a 3-D function f(rho, theta, phi) over the search volume. Pass NAN for the rho/theta limits for the default
      * behavior of integrating over the full search volume in one or both dimensions. */
-    struct volume_integrand_outer_params outer_params = {func, bottom_z, surface_z, radius, theta, min_rho, max_rho, min_theta, max_theta};
+    struct volume_integrand_outer_params outer_params = {func, bottom_z, surface_z, max_radius, theta, min_rho, max_rho, min_theta, max_theta};
     gsl_function F = {&volume_integrand_outer, &outer_params};
     double result, error;
     const double phiMin = -M_PI_2;
@@ -116,7 +116,7 @@ double integrate_over_xz_plane_inner(double x, void *params) {
 }
 
 double Forager::integrate_over_xz_plane(gsl_function *func, bool integrand_is_1d) {
-    const double rho = (theta >= M_PI) ? radius : radius * sin(theta / 2.0);
+    const double rho = (theta >= M_PI) ? max_radius : max_radius * sin(theta / 2.0);
     struct integrate_over_xz_plane_inner_params inner_params = {func, rho, bottom_z, surface_z, integrand_is_1d};
     gsl_function F;
     F.function = &integrate_over_xz_plane_inner;
@@ -135,23 +135,23 @@ double Forager::integrate_over_xz_plane(gsl_function *func, bool integrand_is_1d
     return 2.0 * result;
 }
 
-
-double Forager::integrate_energy_cost_over_prey_path(double x, double z, PreyCategory *pc, bool is_energy_cost) {
+double Forager::integrate_energy_cost_over_prey_path(double x, double z, PreyType *pt, bool is_energy_cost) {
+    const double prey_radius = pt->get_max_attended_distance();
     const double xsq = gsl_pow_2(x);
     const double zsq = gsl_pow_2(z);
-    const double rsq = gsl_pow_2(radius);
-    assert(xsq + zsq <= rsq);
+    const double rsq = gsl_pow_2(prey_radius);
+    const double rhosq = (theta < M_PI) ? gsl_pow_2(prey_radius * sin(theta / 2)) : rsq; // rho = max radius in lateral direction
+    if (xsq + zsq >= rhosq) { return 0; }    // if (x,z) are outside search volume return 0
     const double y0 = sqrt(rsq - xsq - zsq);
     const double yT = fmax(-y0, cot(theta/2) * sqrt(xsq + zsq));
-    const double v = water_velocity(z);
-    const double T = (y0 - yT) / v;
-    auto integrand = [this, x, z, pc, y0, v, is_energy_cost](double t)->double{
-        const double tauval = tau(t, x, z, pc);
+    const double v = water_velocity(z); // Duplicating the passage_time function within this one because we need v below
+    const double T = (y0 - yT) / v;     // and this way there's no need to calculate water_velocity(z) twice.
+    auto integrand = [this, x, z, pt, y0, v, prey_radius, is_energy_cost](double t)->double{
+        const double tauval = tau(t, x, z, pt);
         const double y = y0 - v * t;
-        assert(radius*radius >= x*x + z*z + y*y);
+        assert(prey_radius*prey_radius >= x*x + z*z + y*y);
         if (isfinite(tauval)) {
             const double v = (water_velocity(z) + focal_velocity) / 2;  // Calculate cost from avg of focal & prey position velocities
-            //const double v = focal_velocity;  // Alternatively, use this line to replicate the older Python code
             return maneuver_cost(x, y, z, v, is_energy_cost) * exp(-t / tauval) / tauval;
         } else {
             return 0.;
@@ -172,17 +172,26 @@ double Forager::integrate_energy_cost_over_prey_path(double x, double z, PreyCat
     return result;
 }
 
-double Forager::integrate_detection_pdf(double x, double z, PreyCategory *pc) {
-    /* Integrates the product of func(t) * detection_pdf(t) over the prey's path from t=0 to t=T */
+double Forager::passage_time(double x, double z, PreyType *pt) {
+    /* Returns the duration of time (s) for which the item at (x, z) is passing through the search volume
+     * This is only used in integrate_detection_pdf below, but it's also shared in the Python module for analysis. */
+    const double prey_radius = pt->get_max_attended_distance();
     const double xsq = gsl_pow_2(x);
     const double zsq = gsl_pow_2(z);
-    const double rsq = gsl_pow_2(radius);
-    assert(xsq + zsq <= rsq);
+    const double rsq = gsl_pow_2(prey_radius);
+    const double rhosq = (theta < M_PI) ? gsl_pow_2(prey_radius * sin(theta / 2)) : rsq; // rho = max prey_radius in lateral direction
+    if (xsq + zsq >= rhosq) { return 0; }    // if (x,z) are outside search volume return 0
     const double y0 = sqrt(rsq - xsq - zsq);
     const double yT = fmax(-y0, cot(theta/2) * sqrt(xsq + zsq));
-    const double T = (y0 - yT) / water_velocity(z);
-    auto integrand = [this, x, z, pc](double t)->double{
-        double tauval = tau(t, x, z, pc);
+    return (y0 - yT) / water_velocity(z);
+}
+
+double Forager::integrate_detection_pdf(double x, double z, PreyType *pt) {
+    /* Integrates the detection pdf over the prey's path from t=0 to t=T */
+    const double T = passage_time(x, z, pt);
+    if (T <= 0) { return 0; }  // If (x, z) are outside the search volume, detection probability is 0.
+    auto integrand = [this, x, z, pt](double t)->double{
+        double tauval = tau(t, x, z, pt);
         if (isfinite(tauval)) {
             return exp(-t / tauval) / tauval;
         } else {
@@ -201,6 +210,9 @@ double Forager::integrate_detection_pdf(double x, double z, PreyCategory *pc) {
         gsl_integration_qng(F, 0, T, QUAD_EPSABS, QUAD_EPSREL, &result, &error, &neval);
     #endif
     assert(isfinite(result));
+    if (!isfinite(result)) {
+        printf("TAU_ERROR Detection PDF integral returned non-finite result %.3f for T=%.3f at (x,z)=(%.3f,%.3f) for prey type %s.\n", result, T, x, z, pt->name.c_str());
+    }
     return result;
 }
 
@@ -208,7 +220,7 @@ double* Forager::random_xz() {
     /* Returns a randomly selected (x, z) coordinate within the foraging volume of the fish.
      * It's not quite uniformly distributed, but good enough for randomized testing. */
     static double ret[2];
-    double rho = (theta < M_PI) ? radius * sin(theta / 2) : radius;
+    double rho = (theta < M_PI) ? max_radius * sin(theta / 2) : max_radius;
     double x = rho * (double)rand() / RAND_MAX;
     double zbl = fmax(-sqrt(gsl_pow_2(rho) - gsl_pow_2(x)), bottom_z);
     double zbu = fmin(sqrt(gsl_pow_2(rho) - gsl_pow_2(x)), surface_z);

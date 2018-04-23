@@ -4,13 +4,16 @@
 
 #include "Optimizer.h"
 
-Optimizer::Optimizer(Forager *_initial_forager, size_t _max_iterations, size_t _pack_size, bool _verbose) {
-    initial_forager = _initial_forager;
-    max_iterations = _max_iterations;
-    pack_size = _pack_size; // Probably ideally a multiple of the # of processor cores?
-    verbose = _verbose;
-    n_vars = 5 + initial_forager->num_prey_categories();
+Optimizer::Optimizer(Forager *initial_forager, size_t max_iterations, size_t pack_size, bool verbose) {
+    this->initial_forager = initial_forager;
+    this->max_iterations = max_iterations;
+    this->pack_size = pack_size; // Probably ideally a multiple of the # of processor cores?
+    this->verbose = verbose;
+    n_vars = 6;
     srand(time(NULL));  // Seed the random number generator for the creation of random wolves
+    if (initial_forager->num_search_image_eligible_prey_types() == 0) {
+        add_context(Forager::s_search_image, -1);   // don't try to optimize search image if no prey types are eligible
+    }
     for (int i=0; i < pack_size; i++) {
         wolves.push_back(random_wolf());    // Create the initial pack of wolves
     }
@@ -29,47 +32,47 @@ void Optimizer::set_algorithm_options(bool use_chaos, bool use_dynamic_C, bool u
     algorithm_use_weighted_alpha = use_weighted_alpha;          // Custom variation of the above
 }
 
+double Optimizer::validated_random_parameter_value(Forager::Strategy s) {
+    if (context.find(s) != context.end()) {
+        return context[s];
+    } else {
+        return fRand(initial_forager->strategy_bounds[s][0], initial_forager->strategy_bounds[s][1]);
+    }
+}
+
+void Optimizer::add_context(Forager::Strategy s, double value) {
+    context[s] = value;
+}
+
+void Optimizer::clear_context() {
+    // Clears all context settings and defaults to optimizing everything again, except it still won't optimize
+    // search image if there aren't any prey types eligible for search images.
+    context.clear();
+    if (initial_forager->num_search_image_eligible_prey_types() == 0) {
+        add_context(Forager::s_search_image, -1);   // don't try to optimize search image if no prey types are eligible
+    }
+}
+
 wolf_type Optimizer::random_wolf() {    // Only used on initialization
     wolf_type wolf;
-    wolf.params = ArrayXd::Random(n_vars, 1).abs();
-    wolf.params[0] = fRand(initial_forager->bounds["radius"][0], initial_forager->bounds["radius"][1]);
-    wolf.params[1] = fRand(initial_forager->bounds["theta"][0], initial_forager->bounds["theta"][1]);
-    wolf.params[2] = fRand(initial_forager->bounds["mean_column_velocity"][0], initial_forager->bounds["mean_column_velocity"][1]);
-    wolf.params[3] = fRand(initial_forager->bounds["saccade_time"][0], initial_forager->bounds["saccade_time"][1]);
-    wolf.params[4] = fRand(initial_forager->bounds["discrimination_threshold"][0], initial_forager->bounds["discrimination_threshold"][1]);
-    double attentions_sum = 0;
-    for (size_t i = 5; i < n_vars; i++) { attentions_sum += wolf.params[i]; }
-    for (size_t i = 5; i < n_vars; i++) {
-        wolf.params[i] /= attentions_sum;
-        assert(wolf.params[i] >= 0.);
-        assert(wolf.params[i] <= 1.);
-    }
+    wolf.params = ArrayXd::Random(n_vars, 1).abs(); // is this line necessary?
+    wolf.params[0] = validated_random_parameter_value(Forager::s_delta_min);
+    wolf.params[1] = validated_random_parameter_value(Forager::s_sigma_A);
+    wolf.params[2] = validated_random_parameter_value(Forager::s_mean_column_velocity);
+    wolf.params[3] = validated_random_parameter_value(Forager::s_saccade_time);
+    wolf.params[4] = validated_random_parameter_value(Forager::s_discrimination_threshold);
+    wolf.params[5] = validated_random_parameter_value(Forager::s_search_image);
     return wolf;
 }
 
 void Optimizer::enforce_bounds_and_constraints() {
     for (auto &wolf : wolves) {
-        wolf.params[0] = trim_to_bounds(wolf.params[0], initial_forager->bounds["radius"]);
-        wolf.params[1] = trim_to_bounds(wolf.params[1], initial_forager->bounds["theta"]);
-        wolf.params[2] = trim_to_bounds(wolf.params[2], initial_forager->bounds["mean_column_velocity"]);
-        wolf.params[3] = trim_to_bounds(wolf.params[3], initial_forager->bounds["saccade_time"]);
-        wolf.params[4] = trim_to_bounds(wolf.params[4], initial_forager->bounds["discrimination_threshold"]);
-        double attentions_sum = 0;
-        for (size_t i = 5; i < n_vars; i++) {
-            if (wolf.params[i] < 0) {
-                // Convert any negative attentions to positive instead of truncating, so we can't get all zeros and
-                // mess up the normalization below by dividing by attentions_sum=0.
-                wolf.params[i] = fabs(wolf.params[i]);
-            }
-            wolf.params[i] = trim_to_bounds(wolf.params[i], initial_forager->bounds["attention"]);
-            attentions_sum += wolf.params[i];
-            assert(isfinite(wolf.params[i]));
-        }
-        if (attentions_sum <= 0) {
-            printf("Bad attentions sum is %.10f.\n", attentions_sum);
-        }
-        assert(attentions_sum > 0);
-        for (size_t i = 5; i < n_vars; i++) { wolf.params[i] /= attentions_sum; }
+        wolf.params[0] = trim_to_bounds(wolf.params[0], initial_forager->strategy_bounds[Forager::s_delta_min]);
+        wolf.params[1] = trim_to_bounds(wolf.params[1], initial_forager->strategy_bounds[Forager::s_sigma_A]);
+        wolf.params[2] = trim_to_bounds(wolf.params[2], initial_forager->strategy_bounds[Forager::s_mean_column_velocity]);
+        wolf.params[3] = trim_to_bounds(wolf.params[3], initial_forager->strategy_bounds[Forager::s_saccade_time]);
+        wolf.params[4] = trim_to_bounds(wolf.params[4], initial_forager->strategy_bounds[Forager::s_discrimination_threshold]);
+        wolf.params[5] = trim_to_bounds(wolf.params[5], initial_forager->strategy_bounds[Forager::s_search_image]);
     }
 }
 
@@ -102,7 +105,7 @@ std::vector<double> Optimizer::optimize_forager() {
     alpha = &wolves[0];
     beta = &wolves[1];
     delta = &wolves[2];
-    printf("Initial NREIs are alpha=%.8f J, beta=%.8f J, delta=%.8f J.\n", alpha->fitness, beta->fitness, delta->fitness);
+    printf("Beginning grey wolf optimization with initial alpha NREI of         %.8f J.\n", alpha->fitness);
     const double exponent = (algorithm_use_exponential_decay) ? 2. : 1.;
     gsl_rng_default_seed = (unsigned long) time(nullptr);
     gsl_rng *rng = gsl_rng_alloc(gsl_rng_taus);
@@ -177,7 +180,7 @@ std::vector<double> Optimizer::optimize_forager() {
         alpha_fitnesses_by_step.emplace_back(alpha->fitness);
         current_iteration += 1;
         if (verbose and updated_alpha) {
-            printf("At the end of %d iterations with %lu wolves, the alpha's fitness is %.15f.          \n", current_iteration, wolves.size(), alpha->fitness);
+            printf("At the end of %4d iterations with %lu wolves, the alpha's fitness is %4.8f.          \n", current_iteration, wolves.size(), alpha->fitness);
         }
     }
     gsl_rng_free(rng);
@@ -191,9 +194,7 @@ void Optimizer::calculate_wolf_fitnesses() {
     struct fitness_results { wolf_type * wolf; double fitness; };
     std::vector<std::future<fitness_results>> fitness_futures;
     auto wolf_fitness_lambda = [this](wolf_type *wolf) {
-        fitness_results fr;
-        fr.wolf = wolf;
-        fr.fitness = wolf_fitness(fr.wolf);
+        struct fitness_results fr = {wolf, wolf_fitness(wolf)};
         return fr;
     };
     for (auto &wolf : wolves) {
@@ -201,29 +202,19 @@ void Optimizer::calculate_wolf_fitnesses() {
     };
     for (auto &result : fitness_futures) {
         fitness_results r = result.get();
-        r.wolf->fitness = r.fitness;
+        r.wolf->fitness = r.fitness;    // CLion IDE says this value is never used; yes it is!
     }
 }
 
 void Optimizer::update_forager_from_wolf(Forager *forager, wolf_type *wolf) {
-    // Prey category attention is represented in the wolf by a vector of attention values for all but the last prey
-    // category, which must total <= 1 (enforced elsewhere). Attention to the final category equals 1 minus the sum of
-    // attention to the others, which ensures that attention works as a proportion totaling 1.
-    std::vector<double> category_attentions;
-    for (size_t i = 5; i < n_vars; i++) {
-        assert(!isnan(wolf->params[i]));
-        assert(isfinite(wolf->params[i]));
-        assert(wolf->params[i] >= 0.);
-        assert(wolf->params[i] <= 1.);
-        category_attentions.push_back(wolf->params[i]);
-    }
-    forager->modify_strategies(
-            wolf->params[0],       // radius
-            wolf->params[1],       // theta
+    forager->set_strategies(
+            wolf->params[0],       // delta_min
+            wolf->params[1],       // sigma_A
             wolf->params[2],       // mean column velocity
             wolf->params[3],       // saccade time
             wolf->params[4],       // discrimination threshold
-            category_attentions);
+            wolf->params[5]        // search image
+    );
 }
 
 double Optimizer::wolf_fitness(wolf_type *wolf) {
@@ -232,13 +223,6 @@ double Optimizer::wolf_fitness(wolf_type *wolf) {
     auto forager = new Forager(initial_forager);  // Deep-copy a forager from the initial forager -- CONSIDER JUST UPDATING
     update_forager_from_wolf(forager, wolf);
     const double nrei = forager->NREI();
-//    printf("NREI of one of the foragers (");
-//    printf("radius=%.3f, ", forager->radius);
-//    printf("theta=%.3f, ", forager->theta);
-//    printf("mcv=%.3f, ", forager->mean_column_velocity);
-//    printf("saccade=%.6f, ", forager->saccade_time);
-//    printf("disc_thresh=%.3f", forager->discrimination_threshold);
-//    printf(") is %.12f.\n", nrei);
     delete forager;
     return nrei;
 }

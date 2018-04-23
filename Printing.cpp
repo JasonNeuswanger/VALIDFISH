@@ -14,45 +14,66 @@ void Forager::print_cache_sizes() {
 
 void Forager::print_strategy() {
     printf("Foraging strategy:\n");
-    printf("radius                   : %.5f m\n", radius);
-    printf("theta                    : %.5f radians\n", theta);
-    printf("mean column velocity     : %.5f m/s        (focal velocity %.5f m/s)\n", mean_column_velocity, focal_velocity);
+    printf("delta_min                : %.5f radians    (compare vs resolution %.5f radians)\n", delta_min, angular_resolution);
+    printf("sigma_A                  : %.5f radians\n", sigma_A);
+    printf("mean column velocity     : %.5f m/s        (focal velocity %.5f m/s)\n", mean_column_velocity,
+           focal_velocity);
     printf("saccade time             : %.8f s\n", saccade_time);
     printf("discrimination threshold : %.8f\n", discrimination_threshold);
-    for (auto &pc : prey_categories) {
-        printf("attention to category %s : %.5f\n", pc.name.c_str(), pc.get_attention_allocated());
+    PreyType *search_image_type = nullptr;
+    for (auto &pt : prey_types) {
+        if (pt.search_image_status == PreyType::SearchImageStatus::search_image_target) {
+            search_image_type = &pt;
+        }
+    }
+    if (search_image_type == nullptr) {
+        printf("search image for         : None\n");
+    } else {
+        printf("search image for         : %s\n", search_image_type->name.c_str());
+    }
+}
+
+void Forager::print_parameters() {
+    printf("Parameters:\n");
+    for (int pInt = p_delta_0; pInt <= p_nu; pInt++) {
+        auto p = static_cast<Parameter>(pInt);
+        double value = get_parameter(p);
+        if (value > 0.0001 && value < 10000) {
+            printf("%20s : %.5f\n", parameter_names[p].c_str(), value);
+        } else {
+            printf("%20s : %.3e\n", parameter_names[p].c_str(), value);
+        }
     }
 }
 
 void Forager::print_discrimination_probabilities() {
-    for (auto &pc : prey_categories) {
-        printf("For category %20.20s, p(false_positive)=%.8f and p(true_hit)=%.8f.\n", pc.name.c_str(), pc.false_positive_probability, pc.true_hit_probability);
+    for (auto &pc : prey_types) {
+        printf("For category %20.20s, p(false_positive)=%.8f and p(true_hit)=%.8f. Perceptual sigma=%.8f\n", pc.name.c_str(), pc.false_positive_probability, pc.true_hit_probability, pc.perceptual_sigma);
     }
 }
 
 void Forager::print_analytics(){
     analyze_results();
     printf("Overall, pursued %.5f items/s (%.5f prey, %.5f debris). Ingested %.5f of items pursued.\n", foraging_attempt_rate, prey_pursuit_rate, debris_pursuit_rate, proportion_of_attempts_ingested);
-    for (auto &pc : prey_categories) {
+    for (auto &pc : prey_types) {
         printf("For %20.20s, pursued %.5f items/s (%.5f prey, %.5f debris). Ingested %.5f of items pursued.\n", pc.name.c_str(), pc.foraging_attempt_rate, pc.prey_pursuit_rate, pc.debris_pursuit_rate, pc.proportion_of_attempts_ingested);
     }
 }
 
 void Forager::print_status() {
-    std::string pc1_name = "4-5 mm size class";
-    double cs = cross_sectional_area();
-    printf("Search volume is % .18f\n", search_volume);
-    printf("Focal velocity is % .18f\n", focal_velocity);
-    printf("Cross-sectional area is % .18f\n", cs);
-    printf("Search rate is % .18f\n", search_rate);
+    double cs_area = cross_sectional_area();
+    double max_volume = volume_within_radius(max_radius);
+    printf("Search volume for largest prey type is % .5f\n", max_volume);
+    printf("Focal velocity is % .5f\n", focal_velocity);
+    printf("Cross-sectional area is % .5f\n", cs_area);
     compute_set_size(true); // prints set size substats
-    printf("Set size is % .18f\n", set_size);
-    printf("Focal swimming cost is % .18f\n", focal_swimming_cost);
+    printf("Set size is % .5f\n", set_size);
+    printf("Focal swimming cost is % .5f\n", focal_swimming_cost);
     print_discrimination_probabilities();
     print_analytics();
 
     // The ones below work okay for the example but get into trouble on real fish data because they go out of bounds.
-    // PreyCategory pc1 = get_prey_category(&pc1_name);
+    // PreyType pc1 = get_prey_type(&pc1_name);
     //    double test_x = 0.05;
 //    double test_y = 0.1;
 //    double test_z = 0.08;

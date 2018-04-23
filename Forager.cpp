@@ -4,27 +4,11 @@
 
 #include "Forager.h"
 
-Forager::Forager(double fork_length_cm,
-                 double mass_g,
-                 double radius,
-                 double theta,
-                 double mean_column_velocity,
-                 double saccade_time,
-                 double discrimination_threshold,
-                 double delta_0,
-                 double alpha_0,
-                 double Z_0,
-                 double c_1,
-                 double beta,
-                 double bottom_z,
-                 double surface_z,
-                 unsigned temperature_C,
-                 double bed_roughness,
-                 double discriminability,
-                 double sigma_t,
-                 double tau_0,
-                 double t_V,
-                 std::string *maneuver_interpolation_csv_base_path)
+Forager::Forager(double fork_length_cm, double mass_g, double delta_min, double sigma_A, double mean_column_velocity,
+                 double saccade_time, double discrimination_threshold, double search_image, double delta_0, double alpha_tau,
+                 double alpha_d, double A_0, double t_s_0, double beta, double bottom_z, double surface_z,
+                 unsigned temperature_C, double bed_roughness, double discriminability, double tau_0,
+                 double flicker_frequency, double nu, std::string *maneuver_interpolation_csv_base_path)
         : Swimmer(fork_length_cm, mass_g, temperature_C, maneuver_interpolation_csv_base_path){
 
     #if GSL_ERROR_POLICY == 0
@@ -34,23 +18,29 @@ Forager::Forager(double fork_length_cm,
     #else
         gsl_set_error_handler(NULL);               // Default to abort() on GSL errors. Useful for running the debugger.
     #endif
+    compute_angular_resolution();
+    set_strategy_bounds();
+    set_parameter_bounds();
     // Fish strategy variables
-    this->radius = radius; assert(this->radius > 0);                  // radius of the the search volume
-    this->theta = theta; assert(0 < this->theta < 2*M_PI);            // angular width of the search volume
-    this->mean_column_velocity = mean_column_velocity; assert(this->mean_column_velocity > 0); // mean column velocity in m/s
-    this->saccade_time = saccade_time;
-    this->discrimination_threshold = discrimination_threshold;
+    this->delta_min = validate(s_delta_min, delta_min);
+    this->sigma_A = validate(s_sigma_A, sigma_A);
+    this->mean_column_velocity = validate(s_mean_column_velocity, mean_column_velocity);
+    this->saccade_time = validate(s_saccade_time, saccade_time);
+    this->discrimination_threshold = validate(s_discrimination_threshold, discrimination_threshold);
+    this->search_image = validate(s_search_image, search_image);
     // Model parameters that describe the fish's capabilities and need to be calibrated
-    this->delta_0 = delta_0;
-    this->alpha_0 = alpha_0;
-    this->Z_0 = Z_0;
-    this->c_1 = c_1;
-    this->beta = beta;
-    this->t_V = t_V;
+    this->delta_0 = validate(p_delta_0, delta_0);
+    this->alpha_d = validate(p_alpha_d, alpha_d);
+    this->alpha_tau = validate(p_alpha_tau, alpha_tau);
+    this->A_0 = validate(p_A_0, A_0);
+    this->t_s_0 = validate(p_t_s_0, t_s_0);
+    this->beta = validate(p_beta, beta);
+    this->tau_0 = validate(p_tau_0, tau_0);
+    this->flicker_frequency = validate(p_flicker_frequency, flicker_frequency);
+    this->tau_0 = validate(p_tau_0, tau_0);
+    this->nu = validate(p_nu, nu);
     // Model parameters that describe the prey overall in unknown ways that need to be calibrated
-    this->discriminability = discriminability;
-    this->sigma_t = sigma_t;
-    this->tau_0 = tau_0;
+    this->discriminability = validate(p_discriminability, discriminability);
     // Habitat variables
     this->bottom_z = bottom_z; assert(bottom_z < 0);             // river bottom z-coordinate in m (must be < 0)
     this->surface_z = surface_z; assert(surface_z > 0);          // river surface z-coordinate in m (must be > 0)
@@ -61,69 +51,118 @@ Forager::Forager(double fork_length_cm,
     // based on the mean size of prey in the category.
     this->min_prey_length_from_gill_rakers = 0.000115 * this->fork_length_cm;        // converted to m
     this->max_prey_length_from_mouth_gape = 0.00105 * this->fork_length_cm * 4.3;    // same
-    set_bounds();
 }
 
 Forager::Forager(Forager *otherForager) : Swimmer(*otherForager) {
     // Deep copy a forager and its prey categories and initialize new accelerators, caches, etc.
-    radius = otherForager->radius;
-    theta = otherForager->theta;
+    delta_min = otherForager->delta_min;
+    sigma_A = otherForager->sigma_A;
     mean_column_velocity = otherForager->mean_column_velocity;
     saccade_time = otherForager->saccade_time;
     discrimination_threshold = otherForager->discrimination_threshold;
     // Model parameters
+    tau_0 = otherForager->tau_0;
     delta_0 = otherForager->delta_0;
-    alpha_0 = otherForager->alpha_0;
-    Z_0 = otherForager->Z_0;
-    c_1 = otherForager->c_1;
+    alpha_tau = otherForager->alpha_tau;
+    alpha_d = otherForager->alpha_d;
+    A_0 = otherForager->A_0;
+    t_s_0 = otherForager->t_s_0;
     beta = otherForager->beta;
-    t_V = otherForager->t_V;
+    flicker_frequency = otherForager->flicker_frequency;
+    nu = otherForager->nu;
     // Model parameters that describe the prey overall in unknown ways that need to be calibrated
     discriminability = otherForager->discriminability;
-    sigma_t = otherForager->sigma_t;
-    tau_0 = otherForager->tau_0;
     // Habitat variables
     bottom_z = otherForager->bottom_z;
     surface_z = otherForager->surface_z;
     bed_roughness = otherForager->bed_roughness;
     depth = surface_z - bottom_z;
     // Additional initialization
-    for (auto &pc : otherForager->prey_categories) {
-        //auto copied_prey_category = new PreyCategory(pc);
-        //prey_categories.push_back(copied_prey_category);
-        prey_categories.emplace_back(pc); // creates a new prey category in-place in std::vector using copy constructor
+    for (auto &pt : otherForager->prey_types) {
+        prey_types.emplace_back(pt); // creates a new prey category in-place in std::vector using copy constructor
     }
-    set_bounds();
+    angular_resolution = otherForager->angular_resolution;
+    set_strategy_bounds();
+    set_parameter_bounds();
     process_parameter_updates();
 }
 
 Forager::~Forager() {
     /* Destructor should deallocate any alloc'd c objects stored as instance variables, currently gsl interpolations */
-};
-
-void Forager::set_bounds() {
-    bounds["radius"][0] = 0.01;
-    bounds["radius"][1] = 10 * (0.01 * fork_length_cm); // ARBITRARY -- 10x fork length, converted to m
-    bounds["theta"][0] = 0.01;
-    bounds["theta"][1] = 1.85 * M_PI; // 1.85 pi is an estimate of fish's field of view; look for something in the literature
-    bounds["mean_column_velocity"][0] = 0.01;
-    bounds["mean_column_velocity"][1] = 10 * (0.01 * fork_length_cm);  // ARBITRARY
-    bounds["saccade_time"][0] = 0.167; // physiological max 180 degrees/sec, assume 30 degree average, so 0.167 s just to move the eyes, let alone fixation https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5050213/
-    bounds["saccade_time"][1] = 1.0;   // just assuming the optimum will never be higher than this; adjust upward if needed
-    bounds["discrimination_threshold"][0] = 0.;
-    bounds["discrimination_threshold"][1] = 1.;
-    bounds["attention"][0] = 0.;
-    bounds["attention"][1] = 1.;
 }
 
-void Forager::modify_bound(std::string field, double lower_bound, double upper_bound) {
-    bounds[field][0] = lower_bound;
-    bounds[field][1] = upper_bound;
+void Forager::set_strategy_bounds() {
+    strategy_bounds[s_delta_min][0] = angular_resolution;   // Minimum angular size attended is the minimum angular size visible.
+    strategy_bounds[s_delta_min][1] = 0.05;                 // Max corresponds to an 8 mm prey 10 cm distant, something surely no fish tunes out based on size alone.
+    strategy_bounds[s_sigma_A][0] = 0.1;                    // 0.1 represents an unrealistically forward-concentrated extreme of attention
+    strategy_bounds[s_sigma_A][1] = 4.0;                    // 4.0 gives a pretty much equal distribution of attention
+    strategy_bounds[s_mean_column_velocity][0] = 0.01;
+    strategy_bounds[s_mean_column_velocity][1] = 10 * (0.01 * fork_length_cm);  // ARBITRARY
+    strategy_bounds[s_saccade_time][0] = 0.167; // physiological max 180 degrees/sec, assume 30 degree average, so 0.167 s just to move the eyes, let alone fixation https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5050213/
+    strategy_bounds[s_saccade_time][1] = 1.0;   // just assuming the optimum will never be higher than this; adjust upward if needed
+    strategy_bounds[s_discrimination_threshold][0] = 0;
+    strategy_bounds[s_discrimination_threshold][1] = 6; // 6 intrinsic standard deviations beyond the mean preyishness of debris should be plenty
+    strategy_bounds[s_search_image][0] = -1;    // Search image value of of -1 to 0 means no search image
+    strategy_bounds[s_search_image][1] = 1;     // Search image values between 0 and 1 are split evenly across search-image-eligible categories ordered by number
 }
 
-void Forager::fix_bound(std::string field, double fixed_value) {
-    bounds[field][0] = fixed_value;
-    bounds[field][1] = fixed_value;
+void Forager::set_parameter_bounds() {
+    /* All parameter bounds were set via a priori consieration of their intended functions and plausible values in those roles.
+     * They therefore cannot be grossly overfitted to serve some hidden meaning very different from the one intended. */
+    parameter_bounds[p_delta_0][0] = 1e-6;     // delta_0           -- Scales effect of angular size on tau; bigger delta_0 = harder detection.
+    parameter_bounds[p_delta_0][1] = 1e-2;
+    parameter_bounds[p_alpha_tau][0] = 1;      // alpha_tau          -- The factor by which having a search image reduces tau. Ranges from 1 (no effect) to 100x improvement.
+    parameter_bounds[p_alpha_tau][1] = 100;
+    parameter_bounds[p_alpha_d][0] = 1;        // alpha_d            -- The factor by which having a search images increases the effect of saccade time in reducing perceptual variance
+    parameter_bounds[p_alpha_d][1] = 100;
+    parameter_bounds[p_beta][0] = 1e-1;     // beta              -- Scales effect of set size on tau; larger beta = harder detection, more incentive to drop debris-laden prey
+    parameter_bounds[p_beta][1] = 1e1;
+    parameter_bounds[p_A_0][0] = 0.001;      // A_0               -- Spatial attention constant, scales effect of theta on tau; smaller A_0 = harder detection.
+    parameter_bounds[p_A_0][1] = 1;
+    parameter_bounds[p_t_s_0][0] = 0.1;       // t_s_0               -- Scales effect of saccade time on discrimination; bigger values incentivize longer saccades
+    parameter_bounds[p_t_s_0][1] = 2.0;
+    parameter_bounds[p_discriminability][0] = 1.0;  // discriminability  -- Difference in mean preyishness between prey and debris, in units of the (equal) standard deviation of each.
+    parameter_bounds[p_discriminability][1] = 6.0;
+    parameter_bounds[p_flicker_frequency][0] = 10;   // flicker_frequency             -- Base aptitude of the fish, i.e mean time-until-detection with no other effects present
+    parameter_bounds[p_flicker_frequency][1] = 77;
+    parameter_bounds[p_tau_0][0] = 0.01;   // tau_0             -- Base detection time on which other tau factors multiply except flicker frequency multiply
+    parameter_bounds[p_tau_0][1] = 10;
+    parameter_bounds[p_nu][0] = 1e-5;   // nu             -- Controls effect of loom on tau
+    parameter_bounds[p_nu][1] = 1e-2;
+}
+
+double Forager::validate(Strategy s, double v) {
+    if (v >= strategy_bounds[s][0] && v <= strategy_bounds[s][1]) {
+        return v;
+    } else if (v < strategy_bounds[s][0]) {
+        printf("WARNING! Strategy %s got a value %.8f, which is below the minimum %.8f. Setting to the minimum instead.\n", strategy_names[s].c_str(), v, strategy_bounds[s][0]);
+        return strategy_bounds[s][0];
+    } else {
+        printf("WARNING! Strategy %s got a value %.8f, which is above the maximum %.8f. Setting to the maximum instead.\n", strategy_names[s].c_str(), v, strategy_bounds[s][1]);
+        return strategy_bounds[s][1];
+    }
+}
+
+double Forager::validate(Parameter p, double v) {
+    if (v >= parameter_bounds[p][0] && v <= parameter_bounds[p][1]) {
+        return v;
+    } else if (v < parameter_bounds[p][0]) {
+        printf("WARNING! Parameter %s got a value %.8f, which is below the minimum %.8f. Setting to the minimum instead.\n", parameter_names[p].c_str(), v, parameter_bounds[p][0]);
+        return parameter_bounds[p][0];
+    } else {
+        printf("WARNING! Parameter %s got a value %.8f, which is above the maximum %.8f. Setting to the maximum instead.\n", parameter_names[p].c_str(), v, parameter_bounds[p][1]);
+        return parameter_bounds[p][1];
+    }
+}
+
+void Forager::set_single_strategy_bounds(Strategy strategy, double lower_bound, double upper_bound) {
+    strategy_bounds[strategy][0] = lower_bound;
+    strategy_bounds[strategy][1] = upper_bound;
+}
+
+void Forager::fix_single_strategy_bound(Strategy strategy, double fixed_value) {
+    strategy_bounds[strategy][0] = fixed_value;
+    strategy_bounds[strategy][1] = fixed_value;
 }
 
 void Forager::process_parameter_updates() {
@@ -134,53 +173,55 @@ void Forager::process_parameter_updates() {
         detection_probability_cache.clear();
     }
     compute_angular_resolution();
-    compute_discrimination_probabilities();
+    for (auto &pt : prey_types) {
+        pt.compute_details(fork_length_cm, saccade_time, t_s_0, discrimination_threshold, discriminability, alpha_d, delta_min);
+        double prey_type_radius = pt.get_max_attended_distance();
+        if (prey_type_radius > max_radius) {
+            max_radius = prey_type_radius;
+        }
+    }
+
     compute_focal_velocity();
     focal_swimming_cost = steady_swimming_cost(focal_velocity);
-    search_volume = volume_within_radius(radius);
-    compute_search_rate();
     compute_set_size(false);
 }
 
-void Forager::modify_strategies(double radius,
-                                double theta,
-                                double mean_column_velocity,
-                                double saccade_time,
-                                double discrimination_threshold,
-                                std::vector<double> attention) {
-
-    assert(attention.size() == prey_categories.size());
-    double total_attention = 0;
-    for (auto &a : attention) { total_attention += a; }
-    assert(fabs(total_attention - 1.) < 1e-12);   // Might not exactly equal 1 due to roundoff/floating point errors.
-    this->radius = radius;
-    this->theta = theta;
-    this->mean_column_velocity = mean_column_velocity;
-    this->saccade_time = saccade_time;
-    this->discrimination_threshold = discrimination_threshold;
-    for (size_t i=0; i < attention.size(); i++) {
-        prey_categories.at(i).set_attention_allocated(attention.at(i));
-    }
+void Forager::set_strategies(double delta_min,
+                             double sigma_A,
+                             double mean_column_velocity,
+                             double saccade_time,
+                             double discrimination_threshold,
+                             double search_image) {
+    this->delta_min = validate(s_delta_min, delta_min);
+    this->sigma_A = validate(s_sigma_A, sigma_A);
+    this->mean_column_velocity = validate(s_mean_column_velocity, mean_column_velocity);
+    this->saccade_time = validate(s_saccade_time, saccade_time);
+    this->discrimination_threshold = validate(s_discrimination_threshold, discrimination_threshold);
+    this->search_image = validate(s_search_image, search_image);
     process_parameter_updates();
 }
 
-void Forager::modify_parameters(double delta_0, double alpha_0, double beta, double Z_0, double c_1, double discriminability,
-                                double sigma_t, double tau_0, double t_V) {
+//delta_0, alpha_tau, alpha_d, beta, A_0, t_s_0, discriminability, flicker_frequency, tau_0
+
+void Forager::set_parameters(double delta_0, double alpha_tau, double alpha_d, double beta, double A_0,
+                             double t_s_0, double discriminability, double flicker_frequency, double tau_0, double nu) {
     this->delta_0 = delta_0;
-    this->alpha_0 = alpha_0;
+    this->alpha_tau = alpha_tau;
+    this->alpha_d = alpha_d;
     this->beta = beta;
-    this->Z_0 = Z_0;
-    this->c_1 = c_1;
+    this->A_0 = A_0;
+    this->t_s_0 = t_s_0;
     this->discriminability = discriminability;
-    this->sigma_t = sigma_t;
     this->tau_0 = tau_0;
+    this->flicker_frequency = flicker_frequency;
+    this->nu = nu;
     process_parameter_updates();
 }
 
-void Forager::modify_strategy(Strategy strategy, double value) {
+void Forager::set_strategy(Strategy strategy, double value) {
     switch (strategy) {
-        case s_radius: radius = value; break;
-        case s_theta: theta = value; break;
+        case s_delta_min: delta_min = value; break;
+        case s_sigma_A: sigma_A = value; break;
         case s_mean_column_velocity: mean_column_velocity = value; break;
         case s_saccade_time: saccade_time = value; break;
         case s_discrimination_threshold: discrimination_threshold = value; break;
@@ -188,59 +229,20 @@ void Forager::modify_strategy(Strategy strategy, double value) {
     process_parameter_updates();
 }
 
-void Forager::modify_parameter(Parameter parameter, double value) {
+void Forager::set_parameter(Parameter parameter, double value) {
     switch (parameter) {
         case p_delta_0: delta_0 = value; break;
-        case p_alpha_0: alpha_0 = value; break;
+        case p_alpha_tau: alpha_tau = value; break;
+        case p_alpha_d: alpha_d = value; break;
         case p_beta: beta = value; break;
-        case p_Z_0: Z_0 = value; break;
-        case p_c_1: c_1 = value; break;
+        case p_A_0: A_0 = value; break;
+        case p_t_s_0: t_s_0 = value; break;
         case p_discriminability: discriminability = value; break;
-        case p_sigma_t: sigma_t = value; break;
+        case p_flicker_frequency: flicker_frequency = value; break;
         case p_tau_0: tau_0 = value; break;
-        case p_t_V: t_V = value; break;
+        case p_nu: nu = value; break;
     }
     process_parameter_updates();
-}
-
-double Forager::tau(double t, double x, double z, PreyCategory *pc) {
-    double xsq = gsl_pow_2(x);
-    double zsq = gsl_pow_2(z);
-    double rsq = gsl_pow_2(radius);
-    double v = water_velocity(z);
-    double y = sqrt(rsq - xsq - zsq) - t * v;
-    double angular_size = 2 * atan2(pc->length, (M_PI * sqrt(xsq + gsl_pow_2(y) + zsq)));
-    if (angular_size < angular_resolution) { return INFINITY; }
-    const double maneuver_v = (v + focal_velocity) / 2;
-    if (exclude_unprofitable_maneuvers && maneuver_cost(x, y, z, maneuver_v, true) > pc->energy_content) { return INFINITY; }
-    double retval = tau_0 * pc->crypticity * (1 + beta * saccade_time * set_size)
-                          * (1 + alpha_0 / pc->get_feature_alpha())
-                          * (1 + delta_0 / angular_size)
-                          * (1 + search_rate / Z_0);
-    assert(retval > 0);
-    return retval;
-}
-
-double Forager::detection_probability(double x, double z, PreyCategory *pc) {
-    double result;
-    if (DIAG_NOCACHE) {
-        result = integrate_detection_pdf(x, z, pc);
-    } else {
-        long long key = xzpciec_hash_key(x, z, pc, false);
-        auto cached_value = detection_probability_cache.find(key);
-        if (cached_value == detection_probability_cache.end()) {
-            result = integrate_detection_pdf(x, z, pc);
-            detection_probability_cache[key] = result;
-            ++detection_probability_cache_misses;
-        } else {
-            ++detection_probability_cache_hits;
-            result = cached_value->second;
-        }
-    }
-    if (DIAG_NANCHECKS) {
-        assert(isfinite(result));
-    }
-    return result;
 }
 
 void Forager::compute_angular_resolution() {
@@ -252,46 +254,22 @@ void Forager::compute_angular_resolution() {
 
 void Forager::compute_set_size(bool verbose) {
     double ss = 0;
-    double set_alpha, set_radius, set_volume, pc_ss;
-    for (auto & pc : prey_categories) {
-        set_alpha = fmin(1, pc.get_feature_alpha()); // prevent any type from counting more than 1 per item toward set size
-        if (set_alpha > 0) {
-            set_radius = fmin(radius, pc.max_visible_distance(fork_length_cm)); // base set size on distance within which the item can be seen,
-            set_volume = volume_within_radius(set_radius);                      // or the edge of the search radius, whichever is smaller
-            pc_ss = set_alpha * set_volume * (pc.prey_drift_density + pc.debris_drift_density);
+    double set_volume, pc_ss;
+    for (auto & pt : prey_types) {
+        if (pt.search_image_status != PreyType::SearchImageStatus::search_image_exclusion) {
+            set_volume = volume_within_radius(pt.max_attended_distance);
+            pc_ss = set_volume * (pt.prey_drift_concentration + pt.debris_drift_concentration);
             ss += pc_ss;
             if (verbose) {
-                printf("For %20.20s, max. vis. dist=%.3f, radius=%.3f, set_volume=%.6f, set_alpha=%.6f, prey_density=%4.1f, debris_density=%8.1f, ss for pc=%.3f.\n",
-                    pc.name.c_str(), pc.max_visible_distance(fork_length_cm), set_radius, set_volume, set_alpha, pc.prey_drift_density, pc.debris_drift_density, pc_ss);
+                printf("For %20.20s, max. att. dist=%.3f, set_volume=%.6f, prey_concentration=%4.1f, debris_concentration=%8.1f, ss for pc=%.3f.\n",
+                    pt.name.c_str(), pt.max_attended_distance, set_volume, pt.prey_drift_concentration, pt.debris_drift_concentration, pc_ss);
             }
         }
     }
     set_size = ss;
 }
 
-void Forager::compute_search_rate() {
-    double volume_component = search_volume / t_V;
-    auto velocity_xz = [this](double z)->double{ return water_velocity(z); };
-    gsl_function_pp<decltype(velocity_xz)> Fp(velocity_xz);
-    gsl_function *F = static_cast<gsl_function*>(&Fp);
-    double velocity_component = integrate_over_xz_plane(F, true);
-    search_rate = volume_component + velocity_component;
-}
-
-void Forager::compute_discrimination_probabilities() {
-    for (auto &pc : prey_categories) {
-        double perceptual_sigma;
-        if (pc.get_feature_alpha() <= 0 || saccade_time <= 0) {
-            perceptual_sigma = 10000; // if alpha or ts are 0, make perceptual sigma huge (but not infinite, to avoid sqrt(0) below)
-        } else {
-            perceptual_sigma = sqrt(gsl_pow_2(sigma_t) + gsl_pow_2(c_1 / sqrt(pc.get_feature_alpha() * saccade_time)));
-        }
-        pc.false_positive_probability = 1 - gsl_cdf_gaussian_P(discrimination_threshold / perceptual_sigma, 1);
-        pc.true_hit_probability = 1 - gsl_cdf_gaussian_P((discrimination_threshold - discriminability) / perceptual_sigma, 1);
-    }
-}
-
-double Forager::mean_maneuver_cost(double x, double z, PreyCategory *pc, bool is_energy_cost, double det_prob) {
+double Forager::mean_maneuver_cost(double x, double z, PreyType *pc, bool is_energy_cost, double det_prob) {
     /* Right now this requires detection probability as an argument, because the only place it's called from is the
      * energy intake rate integral loop, and detection probability for the same x, z, pc is already precalculated
      * there. However, in the cached version at least, it's very fast to call the detection probability function
@@ -317,21 +295,21 @@ double Forager::mean_maneuver_cost(double x, double z, PreyCategory *pc, bool is
 }
 
 double Forager::RateOfEnergyIntake(bool is_net) {
-    assert(num_prey_categories() > 0);
+    assert(num_prey_types() > 0);
     double x, y; // temporary holder for x values (y is required but unused) during the integrations
     auto numerator_integrand = [this, is_net](double z, double *y, double *x)->double{
         ++numerator_integrand_evaluations;
         double sum = 0;
         const double v = water_velocity(z);
         double pd, pf, ph, ch, E, dp, dd;
-        for (auto & pc : prey_categories) {
-            pd = detection_probability(*x, z, &pc);
-            pf = pc.false_positive_probability;
-            ph = pc.true_hit_probability;
-            ch = (is_net) ? mean_maneuver_cost(*x, z, &pc, true, pd) : 0;
-            E = pc.energy_content;
-            dp = pc.prey_drift_density;
-            dd = pc.debris_drift_density;
+        for (auto & pt : prey_types) {
+            pd = detection_probability(*x, z, &pt);
+            pf = pt.false_positive_probability;
+            ph = pt.true_hit_probability;
+            ch = (is_net) ? mean_maneuver_cost(*x, z, &pt, true, pd) : 0;
+            E = pt.energy_content;
+            dp = pt.prey_drift_concentration;
+            dd = pt.debris_drift_concentration;
             sum += (pd * v * ((E - ch) * ph * dp - ch * pf * dd));
         }
         return sum;
@@ -345,13 +323,13 @@ double Forager::RateOfEnergyIntake(bool is_net) {
         double sum = 0;
         const double v = water_velocity(z);
         double pd, pf, ph, h, dp, dd;
-        for (auto & pc : prey_categories) {
-            pd = detection_probability(*x, z, &pc);
-            pf = pc.false_positive_probability;
-            ph = pc.true_hit_probability;
-            h = mean_maneuver_cost(*x, z, &pc, false, pd);
-            dp = pc.prey_drift_density;
-            dd = pc.debris_drift_density;
+        for (auto & pt : prey_types) {
+            pd = detection_probability(*x, z, &pt);
+            pf = pt.false_positive_probability;
+            ph = pt.true_hit_probability;
+            h = mean_maneuver_cost(*x, z, &pt, false, pd);
+            dp = pt.prey_drift_concentration;
+            dd = pt.debris_drift_concentration;
             sum += pd * v * h * (ph * dp + pf * dd);
         }
         return sum;
