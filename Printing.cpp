@@ -20,10 +20,10 @@ void Forager::print_strategy() {
            focal_velocity);
     printf("saccade time             : %.8f s\n", saccade_time);
     printf("discrimination threshold : %.8f\n", discrimination_threshold);
-    PreyType *search_image_type = nullptr;
-    for (auto &pt : prey_types) {
-        if (pt.search_image_status == PreyType::SearchImageStatus::search_image_target) {
-            search_image_type = &pt;
+    std::shared_ptr<PreyType> search_image_type = nullptr;
+    for (auto & pt : prey_types) {
+        if (pt->search_image_status == PreyType::SearchImageStatus::search_image_target) {
+            search_image_type = pt;
         }
     }
     if (search_image_type == nullptr) {
@@ -47,16 +47,16 @@ void Forager::print_parameters() {
 }
 
 void Forager::print_discrimination_probabilities() {
-    for (auto &pc : prey_types) {
-        printf("For category %20.20s, p(false_positive)=%.8f and p(true_hit)=%.8f. Perceptual sigma=%.8f\n", pc.name.c_str(), pc.false_positive_probability, pc.true_hit_probability, pc.perceptual_sigma);
+    for (auto & pt : prey_types) {
+        printf("For category %20.20s, p(false_positive)=%.8f and p(true_hit)=%.8f. Perceptual sigma=%.8f\n", pt->name.c_str(), pt->false_positive_probability, pt->true_hit_probability, pt->perceptual_sigma);
     }
 }
 
 void Forager::print_analytics(){
     analyze_results();
     printf("Overall, pursued %.5f items/s (%.5f prey, %.5f debris). Ingested %.5f of items pursued.\n", foraging_attempt_rate, prey_pursuit_rate, debris_pursuit_rate, proportion_of_attempts_ingested);
-    for (auto &pc : prey_types) {
-        printf("For %20.20s, pursued %.5f items/s (%.5f prey, %.5f debris). Ingested %.5f of items pursued.\n", pc.name.c_str(), pc.foraging_attempt_rate, pc.prey_pursuit_rate, pc.debris_pursuit_rate, pc.proportion_of_attempts_ingested);
+    for (auto & pt : prey_types) {
+        printf("For %20.20s, pursued %.5f items/s (%.5f prey, %.5f debris). Ingested %.5f of items pursued.\n", pt->name.c_str(), pt->foraging_attempt_rate, pt->prey_pursuit_rate, pt->debris_pursuit_rate, pt->proportion_of_attempts_ingested);
     }
 }
 

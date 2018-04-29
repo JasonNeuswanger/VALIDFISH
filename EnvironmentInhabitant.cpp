@@ -29,13 +29,14 @@ void Forager::build_sample_prey_types() {
 void Forager::add_prey_type(int number, std::string name, double mean_prey_length, double mean_prey_energy,
                             double crypticity, double prey_drift_concentration, double debris_drift_concentration,
                             bool search_image_eligible) {
-    if ((min_prey_length_from_gill_rakers < mean_prey_length) && (mean_prey_length < max_prey_length_from_mouth_gape)) {
-        auto pt = std::make_shared<PreyType>(number, name, mean_prey_length, mean_prey_energy, prey_drift_concentration,
-                                             debris_drift_concentration, search_image_eligible, crypticity);
-        prey_types.push_back(pt);
-//        prey_types.emplace_back(PreyType(number, name, mean_prey_length, mean_prey_energy, prey_drift_concentration,
-//                                         debris_drift_concentration, search_image_eligible, crypticity));
+    auto pt = std::make_shared<PreyType>(number, name, mean_prey_length, mean_prey_energy, prey_drift_concentration,
+                                         debris_drift_concentration, search_image_eligible, crypticity);
+    if ((min_prey_length_from_gill_rakers > pt->length) || (pt->length > max_prey_length_from_mouth_gape)) {
+        // If a prey type is too small or too large to physically eat, treat all prey items within that type as debris.
+        pt->debris_drift_concentration += pt->prey_drift_concentration;
+        pt->prey_drift_concentration = 0;
     }
+    prey_types.push_back(pt);
 }
 
 void Forager::process_prey_type_changes() {
@@ -45,16 +46,16 @@ void Forager::process_prey_type_changes() {
     // work best if it's represented as a single continuous variable. Therefore, we map values from -1 to 0 onto
     // a "no search image" strategy. Values from 0 to 1 are divided at even intervals among the prey types eligible
     // for search images. This gives the algorithm the best chance of considering all the strategies.
-    std::vector<PreyType *> search_image_eligible_prey_types;
+    std::vector<std::shared_ptr<PreyType>> search_image_eligible_prey_types;
     for (auto & pt : prey_types) {
-        if (pt.search_image_eligible) {
-            search_image_eligible_prey_types.push_back(&pt);
+        if (pt->search_image_eligible) {
+            search_image_eligible_prey_types.push_back(pt);
         }
     }
     size_t n_eligible_types = search_image_eligible_prey_types.size();
     if (search_image > 0 && n_eligible_types > 0) {
         for (auto & pt : prey_types) {
-            pt.search_image_status = PreyType::SearchImageStatus::search_image_exclusion;   // exclude all types
+            pt->search_image_status = PreyType::SearchImageStatus::search_image_exclusion;   // exclude all types
         }
         double threshold_increment = 1.0 / n_eligible_types;                                // then include the right one
         for (int i=0; i<n_eligible_types; i++) {
@@ -64,11 +65,12 @@ void Forager::process_prey_type_changes() {
         }
     } else {
         for (auto & pt : prey_types) {
-            pt.search_image_status = PreyType::SearchImageStatus::no_search_image;
+            pt->search_image_status = PreyType::SearchImageStatus::no_search_image;
         }
     }
     process_parameter_updates();
 }
+
 
 size_t Forager::num_prey_types() {
     return prey_types.size();
@@ -77,7 +79,7 @@ size_t Forager::num_prey_types() {
 size_t Forager::num_search_image_eligible_prey_types() {
     size_t count = 0;
     for (auto & pt : prey_types) {
-        if (pt.search_image_eligible) {
+        if (pt->search_image_eligible) {
             count++;
         }
     }

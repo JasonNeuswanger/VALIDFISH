@@ -10,13 +10,13 @@ double cot(double x) {
     return c / s;
 }
 
-long long xzpciec_hash_key(double x, double z, PreyType *pc, bool is_energy_cost) {
+long long xzpciec_hash_key(double x, double z, std::shared_ptr<PreyType> pt, bool is_energy_cost) {
     /* This function works by getting 16-bit binary integer representations of each input parameter and
      * concatenating them into a single 64-bit (long long) binary representation of a new integer for the key. */
     long long intx = (long) round(x / MEMOIZATION_PRECISION);
     long long intz = (long) round(z / MEMOIZATION_PRECISION);
-    long long pcid = pc->uniqueid;
-    long long hash_key_value = (intx << 48) + (intz << 32) + (pcid << 16) + is_energy_cost;
+    long long ptid = pt->uniqueid;
+    long long hash_key_value = (intx << 48) + (intz << 32) + (ptid << 16) + is_energy_cost;
 //    std::cout << "val for intx=10k would be " << std::bitset<64>(50) << std::endl;
 //    std::cout << "intx = " << intx << " (" << x << ")    intx = " << std::bitset<64>(intx)  << std::endl;
 //    std::cout << "intx = " << intz << " (" << z << ")    intx = " << std::bitset<64>(intz)  << std::endl;

@@ -23,7 +23,7 @@ inline double Forager::tau_effect_of_set_size() {
     return 1 + beta * saccade_time * set_size;
 }
 
-inline double Forager::tau_effect_of_angular_area(double distance, PreyType *pt) {
+inline double Forager::tau_effect_of_angular_area(double distance, std::shared_ptr<PreyType> pt) {
     // Calculate angular area, assuming the average prey item appears 4x as long as it is wide. The exact length:width
     // ratio doesn't really matter because it's scaled by a calibrated constant in the equation for tau anyway.
     const double angular_area = gsl_pow_2(atan2(pt->length, (M_PI * distance)));
@@ -35,17 +35,17 @@ inline double Forager::tau_effect_of_angular_area(double distance, PreyType *pt)
     }
 }
 
-inline double Forager::tau_effect_of_loom(double distance, double v, double y, PreyType *pt) {
+inline double Forager::tau_effect_of_loom(double distance, double v, double y, std::shared_ptr<PreyType> pt) {
     // Calculate loom, the derivative of angular area with respect to time.
     const double loom = (2*M_PI*pt->length*v*y*atan(pt->length/(M_PI*distance))) / (distance * (gsl_pow_2(pt->length) + gsl_pow_2(M_PI * distance)));
     return (loom > 0) ? nu / (nu + loom) : 1;
 }
 
-inline double Forager::tau_effect_of_search_image(PreyType *pt) {
+inline double Forager::tau_effect_of_search_image(std::shared_ptr<PreyType> pt) {
     return (pt->search_image_status == PreyType::SearchImageStatus::search_image_target) ? (1 / alpha_tau) : 1;
 }
 
-double Forager::tau(double t, double x, double z, PreyType *pt) {
+double Forager::tau(double t, double x, double z, std::shared_ptr<PreyType> pt) {
     // Calculate some prerequisite quantities.
     const double xsq = gsl_pow_2(x);
     const double zsq = gsl_pow_2(z);
@@ -55,7 +55,7 @@ double Forager::tau(double t, double x, double z, PreyType *pt) {
         printf("TAU_ERROR: Somehow called for tau at (x,z)=(%.5f,%.5f) so xsq+rsq=%.5f is > rsq=%.5f. Prey type %s. Should be filtered out before here.\n", x, z, xsq+zsq, rsq, pt->name.c_str());
         return INFINITY;
     }
-    const double y = sqrt(rsq - xsq - zsq) - t * v; // SOMEHOW GETTING NAN HERE SOMETIMES
+    const double y = sqrt(rsq - xsq - zsq) - t * v;
     if (isnan(y)) {
         printf("TAU_ERROR: y=nan at rsq=%.5f, xsq=%.5f, zsq=%.5f, t=%.5f, v=%.5f for prey type %s.\n", rsq, xsq, zsq, t, v, pt->name.c_str());
     }
@@ -84,7 +84,7 @@ double Forager::tau(double t, double x, double z, PreyType *pt) {
     return combined_tau;
 }
 
-std::map<std::string, double> Forager::tau_components(double t, double x, double z, PreyType *pt) {
+std::map<std::string, double> Forager::tau_components(double t, double x, double z, std::shared_ptr<PreyType> pt) {
     // Diagnostic version of the tau function to return the individual multipliers, used for plotting relative importance in Python.
     const double xsq = gsl_pow_2(x);
     const double zsq = gsl_pow_2(z);
@@ -125,7 +125,7 @@ std::map<std::string, double> Forager::tau_components(double t, double x, double
     return components;
 };
 
-double Forager::detection_probability(double x, double z, PreyType *pt) {
+double Forager::detection_probability(double x, double z, std::shared_ptr<PreyType> pt) {
     double result;
     if (DIAG_NOCACHE) {
         result = integrate_detection_pdf(x, z, pt);

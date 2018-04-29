@@ -4,9 +4,9 @@
 
 #include "Forager.h"
 
-PreyType Forager::get_prey_type(std::string name) {
-    for (auto &pt : prey_types) {
-        if (pt.name == name) {
+std::shared_ptr<PreyType> Forager::get_prey_type(std::string name) {
+    for (auto & pt : prey_types) {
+        if (pt->name == name) {
             return pt;
         }
     }
@@ -14,7 +14,7 @@ PreyType Forager::get_prey_type(std::string name) {
     return nullptr;
 }
 
-std::vector<PreyType> Forager::get_prey_types() {
+std::vector<std::shared_ptr<PreyType>> Forager::get_prey_types() {
     return prey_types;
 }
 
@@ -68,7 +68,7 @@ double Forager::get_proportion_of_attempts_ingested() {
     return proportion_of_attempts_ingested;
 }
 
-double Forager::get_diet_proportion_for_prey_type(PreyType *pt) {
+double Forager::get_diet_proportion_for_prey_type(std::shared_ptr<PreyType> pt) {
     if (pt == nullptr) {
         return 0;   // return proportion of 0 if category isn't in diet at all
     } else {

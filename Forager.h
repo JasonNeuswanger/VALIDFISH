@@ -80,9 +80,9 @@ private:
 
     // Geometry.cpp
 
-    double integrate_over_xz_plane(gsl_function *, bool integrand_is_1d);
+    double integrate_over_xz_plane(gsl_function *func, bool integrand_is_1d);
     double integrate_over_volume(gsl_function *func, double min_rho, double max_rho, double min_theta, double max_theta);
-    double integrate_detection_pdf(double x, double z, PreyType *pt);
+    double integrate_detection_pdf(double x, double z, std::shared_ptr<PreyType> pt);
     double* random_xz();
 
     // EnvironmentInhabitant.cpp
@@ -91,7 +91,7 @@ private:
 
     // EnergyCosts.cpp
 
-    double integrate_energy_cost_over_prey_path(double x, double z, PreyType *pt, bool is_energy_cost);
+    double integrate_energy_cost_over_prey_path(double x, double z, std::shared_ptr<PreyType> pt, bool is_energy_cost);
 
     // General recalculating
 
@@ -120,7 +120,7 @@ private:
 
     double prey_pursuit_rate, debris_pursuit_rate, foraging_attempt_rate, proportion_of_attempts_ingested;
 
-    double pursuit_rate(std::string which_rate, PreyType *pt);
+    double pursuit_rate(std::string which_rate, std::shared_ptr<PreyType> pt);
 
 
 public:
@@ -181,7 +181,7 @@ public:
     void set_single_strategy_bounds(Strategy strategy, double lower_bound, double upper_bound);
     void fix_single_strategy_bound(Strategy strategy, double fixed_value);
 
-    double mean_maneuver_cost(double x, double z, PreyType *pt, bool is_energy_cost, double det_prob);
+    double mean_maneuver_cost(double x, double z, std::shared_ptr<PreyType> pt, bool is_energy_cost, double det_prob);
 
     double NREI();    // Net rate of energy intake
     double GREI();    // Gross rate of energy intake
@@ -190,14 +190,14 @@ public:
 
     inline double tau_effect_of_spatial_attention(double y, double distance);
     inline double tau_effect_of_set_size();
-    inline double tau_effect_of_angular_area(double distance, PreyType *pt);
-    inline double tau_effect_of_loom(double distance, double v, double y, PreyType *pt);
-    inline double tau_effect_of_search_image(PreyType *pt);
+    inline double tau_effect_of_angular_area(double distance, std::shared_ptr<PreyType> pt);
+    inline double tau_effect_of_loom(double distance, double v, double y, std::shared_ptr<PreyType> pt);
+    inline double tau_effect_of_search_image(std::shared_ptr<PreyType> pt);
 
-    double tau(double t, double x, double z, PreyType *pt);
-    double detection_probability(double x, double z, PreyType *pt);
+    double tau(double t, double x, double z, std::shared_ptr<PreyType> pt);
+    double detection_probability(double x, double z, std::shared_ptr<PreyType> pt);
 
-    std::map<std::string, double> tau_components(double t, double x, double z, PreyType *pt); // for diagnostics/plotting
+    std::map<std::string, double> tau_components(double t, double x, double z, std::shared_ptr<PreyType> pt); // for diagnostics/plotting
 
     // Printing.cpp
 
@@ -209,15 +209,15 @@ public:
 
     // ForagerGetters.cpp
 
-    PreyType get_prey_type(std::string name);
-    std::vector<PreyType> get_prey_types();
+    std::shared_ptr<PreyType> get_prey_type(std::string name);
+    std::vector<std::shared_ptr<PreyType>> get_prey_types();
     double get_fork_length_cm();
     double get_max_radius();
     double get_focal_velocity();
     double get_field_of_view();
     double get_foraging_attempt_rate();
     double get_proportion_of_attempts_ingested();
-    double get_diet_proportion_for_prey_type(PreyType *pt);
+    double get_diet_proportion_for_prey_type(std::shared_ptr<PreyType> pt);
     double get_angular_resolution();
     double get_strategy(Strategy strategy);
     double get_parameter(Parameter parameter);
@@ -226,7 +226,7 @@ public:
 
     // Geometry.cpp
 
-    double passage_time(double x, double z, PreyType *pt);
+    double passage_time(double x, double z, std::shared_ptr<PreyType> pt);
     double cross_sectional_area();
     double volume_within_radius(double r);
 
@@ -249,13 +249,13 @@ public:
     // about whether they're pointing to the same object or a copy.
 
     void analyze_results();
-    PreyType *get_favorite_prey_type();
-    double depletable_detection_probability(double x, double y, double z, PreyType *pt);
-    double relative_pursuits_by_position_single_prey_type(double x, double y, double z, PreyType *pt);
+    std::shared_ptr<PreyType> get_favorite_prey_type();
+    double depletable_detection_probability(double x, double y, double z, std::shared_ptr<PreyType> pt);
+    double relative_pursuits_by_position_single_prey_type(double x, double y, double z, std::shared_ptr<PreyType> pt);
     double relative_pursuits_by_position(double x, double y, double z); // sums the above over all prey categories
-    std::map<std::string, std::vector<std::map<std::string, double>>> spatial_detection_proportions(PreyType *pt, std::string which_items, bool verbose);
+    std::map<std::string, std::vector<std::map<std::string, double>>> spatial_detection_proportions(std::shared_ptr<PreyType> pt, std::string which_items, bool verbose);
     double proportion_of_detections_within(double min_distance, double max_distance, double min_angle, double max_angle,
-                                               PreyType *pt, std::string *which_items);
+                                           std::shared_ptr<PreyType> pt, std::string *which_items);
 
 };
 

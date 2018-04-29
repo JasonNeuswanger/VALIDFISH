@@ -66,7 +66,7 @@ wolf_type Optimizer::random_wolf() {    // Only used on initialization
 }
 
 void Optimizer::enforce_bounds_and_constraints() {
-    for (auto &wolf : wolves) {
+    for (auto & wolf : wolves) {
         wolf.params[0] = trim_to_bounds(wolf.params[0], initial_forager->strategy_bounds[Forager::s_delta_min]);
         wolf.params[1] = trim_to_bounds(wolf.params[1], initial_forager->strategy_bounds[Forager::s_sigma_A]);
         wolf.params[2] = trim_to_bounds(wolf.params[2], initial_forager->strategy_bounds[Forager::s_mean_column_velocity]);

@@ -135,7 +135,7 @@ double Forager::integrate_over_xz_plane(gsl_function *func, bool integrand_is_1d
     return 2.0 * result;
 }
 
-double Forager::integrate_energy_cost_over_prey_path(double x, double z, PreyType *pt, bool is_energy_cost) {
+double Forager::integrate_energy_cost_over_prey_path(double x, double z, std::shared_ptr<PreyType> pt, bool is_energy_cost) {
     const double prey_radius = pt->get_max_attended_distance();
     const double xsq = gsl_pow_2(x);
     const double zsq = gsl_pow_2(z);
@@ -172,7 +172,7 @@ double Forager::integrate_energy_cost_over_prey_path(double x, double z, PreyTyp
     return result;
 }
 
-double Forager::passage_time(double x, double z, PreyType *pt) {
+double Forager::passage_time(double x, double z, std::shared_ptr<PreyType> pt) {
     /* Returns the duration of time (s) for which the item at (x, z) is passing through the search volume
      * This is only used in integrate_detection_pdf below, but it's also shared in the Python module for analysis. */
     const double prey_radius = pt->get_max_attended_distance();
@@ -186,7 +186,7 @@ double Forager::passage_time(double x, double z, PreyType *pt) {
     return (y0 - yT) / water_velocity(z);
 }
 
-double Forager::integrate_detection_pdf(double x, double z, PreyType *pt) {
+double Forager::integrate_detection_pdf(double x, double z, std::shared_ptr<PreyType> pt) {
     /* Integrates the detection pdf over the prey's path from t=0 to t=T */
     const double T = passage_time(x, z, pt);
     if (T <= 0) { return 0; }  // If (x, z) are outside the search volume, detection probability is 0.

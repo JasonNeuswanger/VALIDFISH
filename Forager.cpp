@@ -78,8 +78,9 @@ Forager::Forager(Forager *otherForager) : Swimmer(*otherForager) {
     bed_roughness = otherForager->bed_roughness;
     depth = surface_z - bottom_z;
     // Additional initialization
-    for (auto &pt : otherForager->prey_types) {
-        prey_types.emplace_back(pt); // creates a new prey category in-place in std::vector using copy constructor
+    for (auto & pt : otherForager->prey_types) {
+        auto pt_copy = std::make_shared<PreyType>(&(*pt));
+        prey_types.push_back(pt_copy); // creates a new prey category in-place in std::vector using copy constructor
     }
     angular_resolution = otherForager->angular_resolution;
     set_strategy_bounds();
@@ -124,7 +125,7 @@ void Forager::set_parameter_bounds() {
     parameter_bounds[p_discriminability][0] = 1.0;  // discriminability  -- Difference in mean preyishness between prey and debris, in units of the (equal) standard deviation of each.
     parameter_bounds[p_discriminability][1] = 6.0;
     parameter_bounds[p_flicker_frequency][0] = 10;   // flicker_frequency             -- Base aptitude of the fish, i.e mean time-until-detection with no other effects present
-    parameter_bounds[p_flicker_frequency][1] = 77;
+    parameter_bounds[p_flicker_frequency][1] = 70;
     parameter_bounds[p_tau_0][0] = 0.01;   // tau_0             -- Base detection time on which other tau factors multiply except flicker frequency multiply
     parameter_bounds[p_tau_0][1] = 10;
     parameter_bounds[p_nu][0] = 1e-5;   // nu             -- Controls effect of loom on tau
@@ -173,9 +174,9 @@ void Forager::process_parameter_updates() {
         detection_probability_cache.clear();
     }
     compute_angular_resolution();
-    for (auto &pt : prey_types) {
-        pt.compute_details(fork_length_cm, saccade_time, t_s_0, discrimination_threshold, discriminability, alpha_d, delta_min);
-        double prey_type_radius = pt.get_max_attended_distance();
+    for (auto & pt : prey_types) {
+        pt->compute_details(fork_length_cm, saccade_time, t_s_0, discrimination_threshold, discriminability, alpha_d, delta_min);
+        double prey_type_radius = pt->get_max_attended_distance();
         if (prey_type_radius > max_radius) {
             max_radius = prey_type_radius;
         }
@@ -254,22 +255,23 @@ void Forager::compute_angular_resolution() {
 
 void Forager::compute_set_size(bool verbose) {
     double ss = 0;
-    double set_volume, pc_ss;
+    double set_volume, pt_ss;
     for (auto & pt : prey_types) {
-        if (pt.search_image_status != PreyType::SearchImageStatus::search_image_exclusion) {
-            set_volume = volume_within_radius(pt.max_attended_distance);
-            pc_ss = set_volume * (pt.prey_drift_concentration + pt.debris_drift_concentration);
-            ss += pc_ss;
+        if (pt->search_image_status != PreyType::SearchImageStatus::search_image_exclusion) {
+            set_volume = volume_within_radius(pt->max_attended_distance);
+            pt_ss = set_volume * (pt->prey_drift_concentration + pt->debris_drift_concentration);
+            ss += pt_ss;
             if (verbose) {
-                printf("For %20.20s, max. att. dist=%.3f, set_volume=%.6f, prey_concentration=%4.1f, debris_concentration=%8.1f, ss for pc=%.3f.\n",
-                    pt.name.c_str(), pt.max_attended_distance, set_volume, pt.prey_drift_concentration, pt.debris_drift_concentration, pc_ss);
+                printf("For %20.20s, max. att. dist=%.3f, set_volume=%.6f, prey_concentration=%4.1f, debris_concentration=%8.1f, ss for pt=%.3f.\n",
+                    pt->name.c_str(), pt->max_attended_distance, set_volume, pt->prey_drift_concentration, pt->debris_drift_concentration, pt_ss);
             }
         }
     }
     set_size = ss;
 }
 
-double Forager::mean_maneuver_cost(double x, double z, PreyType *pc, bool is_energy_cost, double det_prob) {
+double Forager::mean_maneuver_cost(double x, double z, std::shared_ptr<PreyType> pt, bool is_energy_cost,
+                                   double det_prob) {
     /* Right now this requires detection probability as an argument, because the only place it's called from is the
      * energy intake rate integral loop, and detection probability for the same x, z, pc is already precalculated
      * there. However, in the cached version at least, it's very fast to call the detection probability function
@@ -277,12 +279,12 @@ double Forager::mean_maneuver_cost(double x, double z, PreyType *pc, bool is_ene
      * I can always put in a check to pass det_prob = -1 and force a recalculation if det_prob == -1. */
     double result;
     if (DIAG_NOCACHE) {
-        result = (det_prob > 0.) ? integrate_energy_cost_over_prey_path(x, z, pc, is_energy_cost) / det_prob : 0.;
+        result = (det_prob > 0.) ? integrate_energy_cost_over_prey_path(x, z, pt, is_energy_cost) / det_prob : 0.;
     } else {
-        long long key = xzpciec_hash_key(x, z, pc, is_energy_cost);
+        long long key = xzpciec_hash_key(x, z, pt, is_energy_cost);
         auto cached_value = mean_maneuver_cost_cache.find(key);
         if (cached_value == mean_maneuver_cost_cache.end()) {
-            result = (det_prob > 0.) ? integrate_energy_cost_over_prey_path(x, z, pc, is_energy_cost) / det_prob : 0.;
+            result = (det_prob > 0.) ? integrate_energy_cost_over_prey_path(x, z, pt, is_energy_cost) / det_prob : 0.;
             mean_maneuver_cost_cache[key] = result;
             ++mean_maneuver_cost_cache_misses;
         } else {
@@ -303,14 +305,16 @@ double Forager::RateOfEnergyIntake(bool is_net) {
         const double v = water_velocity(z);
         double pd, pf, ph, ch, E, dp, dd;
         for (auto & pt : prey_types) {
-            pd = detection_probability(*x, z, &pt);
-            pf = pt.false_positive_probability;
-            ph = pt.true_hit_probability;
-            ch = (is_net) ? mean_maneuver_cost(*x, z, &pt, true, pd) : 0;
-            E = pt.energy_content;
-            dp = pt.prey_drift_concentration;
-            dd = pt.debris_drift_concentration;
-            sum += (pd * v * ((E - ch) * ph * dp - ch * pf * dd));
+            if (pt->prey_drift_concentration > 0 || pt->debris_drift_concentration > 0) {
+                pd = detection_probability(*x, z, pt);
+                pf = pt->false_positive_probability;
+                ph = pt->true_hit_probability;
+                ch = (is_net) ? mean_maneuver_cost(*x, z, pt, true, pd) : 0;
+                E = pt->energy_content;
+                dp = pt->prey_drift_concentration;
+                dd = pt->debris_drift_concentration;
+                sum += (pd * v * ((E - ch) * ph * dp - ch * pf * dd));
+            }
         }
         return sum;
     };
@@ -324,13 +328,15 @@ double Forager::RateOfEnergyIntake(bool is_net) {
         const double v = water_velocity(z);
         double pd, pf, ph, h, dp, dd;
         for (auto & pt : prey_types) {
-            pd = detection_probability(*x, z, &pt);
-            pf = pt.false_positive_probability;
-            ph = pt.true_hit_probability;
-            h = mean_maneuver_cost(*x, z, &pt, false, pd);
-            dp = pt.prey_drift_concentration;
-            dd = pt.debris_drift_concentration;
-            sum += pd * v * h * (ph * dp + pf * dd);
+            if (pt->prey_drift_concentration > 0 || pt->debris_drift_concentration > 0) {
+                pd = detection_probability(*x, z, pt);
+                pf = pt->false_positive_probability;
+                ph = pt->true_hit_probability;
+                h = mean_maneuver_cost(*x, z, pt, false, pd);
+                dp = pt->prey_drift_concentration;
+                dd = pt->debris_drift_concentration;
+                sum += pd * v * h * (ph * dp + pf * dd);
+            }
         }
         return sum;
     };

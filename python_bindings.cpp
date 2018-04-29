@@ -15,7 +15,8 @@ PYBIND11_MODULE(pyvalidfish, m) {
 
     /* --------------------- Prey type class and components ----------------------- */
 
-    py::class_<PreyType> preytype(m, "PreyType");
+    //py::class_<PreyType> preytype(m, "PreyType");
+    py::class_<PreyType, std::shared_ptr<PreyType>> preytype(m, "PreyType");
 
     preytype.def(py::init<int, std::string, double, double, double, double, bool, double>())
             .def("get_diet_proportion", &PreyType::get_diet_proportion)

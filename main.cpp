@@ -40,7 +40,7 @@ int main() {
 
     // current test value: Forager NREI is 0.025479.
 
-    PreyType *test_pt = forager->get_prey_type("2 mm class");
+    auto test_pt = forager->get_prey_type("2 mm class");
 
     forager->spatial_detection_proportions(test_pt, "All", true);
 
@@ -54,7 +54,7 @@ int main() {
 //    optimizer->set_algorithm_options(false, false, false, false, false, true);
 //    optimizer->optimize_forager();
 //    opt_timer.stop();
-//    forager->print_strategy();
-//    forager->print_status();
+    forager->print_strategy();
+    forager->print_status();
 
 }
