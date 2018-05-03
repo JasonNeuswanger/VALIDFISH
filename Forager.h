@@ -130,7 +130,7 @@ public:
 
     // Name map so feedback about parameters (validation problems, etc) can print out the actual name and not just a number.
     std::map<Strategy, std::string> strategy_names = {
-            {s_delta_min, "delta_min"},
+            {s_delta_min, "delta_min"}, // todo consider removing delta_min, as there are already mechanisms for large fish to ignore small items
             {s_sigma_A, "sigma_A"},
             {s_mean_column_velocity, "mean_column_velocity"},
             {s_saccade_time, "saccade_time"},

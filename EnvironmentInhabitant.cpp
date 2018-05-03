@@ -8,13 +8,17 @@ void Forager::compute_focal_velocity() {
     focal_velocity = water_velocity(0);
 }
 
+//double Forager::water_velocity(double z) {
+//    /* I tested water velocity below with a cache, but the cache hits took 30-50 % longer than just recalculating. */
+//    double k = bed_roughness * 1000;       // bed roughness height in mm
+//    double R = depth;                      // hydraulic delta_min in m, approximated as depth, as per Hayes et al 2007
+//    double H = 0.001 + surface_z - z;      //  distance of z position below the surface, in m; adding 1 mm to avoid infinite velocity at surface
+//    double vstar = mean_column_velocity / (5.75 * log10(12.27 * R / k));  // # Stream Hydrology: An Introduction for Ecologists eqn 6.50
+//    return 5.75 * log10(30 * H / k) * vstar;  // Hayes et al 2007 eqn 1
+//}
+
 double Forager::water_velocity(double z) {
-    /* I tested water velocity below with a cache, but the cache hits took 30-50 % longer than just recalculating. */
-    double k = bed_roughness * 1000;       // bed roughness height in mm
-    double R = depth;                      // hydraulic delta_min in m, approximated as depth, as per Hayes et al 2007
-    double H = 0.001 + surface_z - z;      //  distance of z position below the surface, in m; adding 1 mm to avoid infinite velocity at surface
-    double vstar = mean_column_velocity / (5.75 * log10(12.27 * R / k));  // # Stream Hydrology: An Introduction for Ecologists eqn 6.50
-    return 5.75 * log10(30 * H / k) * vstar;  // Hayes et al 2007 eqn 1
+    return 1.4 * mean_column_velocity * pow((z-bottom_z)/depth, 0.52);  // todo get actual constants for this
 }
 
 void Forager::build_sample_prey_types() {

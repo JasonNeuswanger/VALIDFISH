@@ -260,6 +260,7 @@ void Forager::compute_set_size(bool verbose) {
         if (pt->search_image_status != PreyType::SearchImageStatus::search_image_exclusion) {
             set_volume = volume_within_radius(pt->max_attended_distance);
             pt_ss = set_volume * (pt->prey_drift_concentration + pt->debris_drift_concentration);
+            // todo consider weighting set size by spatial attention, increasing incentive to attend forward
             ss += pt_ss;
             if (verbose) {
                 printf("For %20.20s, max. att. dist=%.3f, set_volume=%.6f, prey_concentration=%4.1f, debris_concentration=%8.1f, ss for pt=%.3f.\n",

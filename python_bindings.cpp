@@ -48,6 +48,7 @@ PYBIND11_MODULE(pyvalidfish, m) {
             .def("fix_single_strategy_bound", &Forager::fix_single_strategy_bound)
             .def("add_prey_type", &Forager::add_prey_type)
             .def("process_prey_type_changes", &Forager::process_prey_type_changes)
+            .def("water_velocity", &Forager::water_velocity)
             .def("depletable_detection_probability", &Forager::depletable_detection_probability)
             .def("relative_pursuits_by_position", &Forager::relative_pursuits_by_position)
             .def("relative_pursuits_by_position_single_prey_type", &Forager::relative_pursuits_by_position_single_prey_type)
