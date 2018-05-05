@@ -98,7 +98,7 @@ std::map<std::string, double> Forager::tau_components(double t, double x, double
     std::map<std::string, double> components;
     components.emplace("t", t); // not a component of tau, but an index for the others
     components.emplace("y", y); // not a component of tau, but gives context for the others
-    const double standin_for_infinity = 30;     // lower value to indicate infinite effect on the plots
+    const double standin_for_infinity = 10000;     // lower value to indicate infinite effect on the plots
     if (angular_length < delta_min) {
         components.emplace("angular_length_too_small_to_attend", standin_for_infinity);
     } else {

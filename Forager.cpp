@@ -49,7 +49,7 @@ Forager::Forager(double fork_length_cm, double mass_g, double delta_min, double 
     // Physiological constraints from the literature, from from Wankowski (1979) as adapted by Hayes et al (2000)
     // Unlike other models, we don't truncated prey classes to suit these lengths; they're either excluded or not,
     // based on the mean size of prey in the category.
-    this->min_prey_length_from_gill_rakers = 0.000115 * this->fork_length_cm;        // converted to m
+    this->min_prey_length_from_gill_rakers = 0.001 * (0.29 + 0.021 * this->fork_length_cm); // expressed here in meters
     this->max_prey_length_from_mouth_gape = 0.00105 * this->fork_length_cm * 4.3;    // same
 }
 
@@ -110,8 +110,8 @@ void Forager::set_strategy_bounds() {
 void Forager::set_parameter_bounds() {
     /* All parameter bounds were set via a priori consieration of their intended functions and plausible values in those roles.
      * They therefore cannot be grossly overfitted to serve some hidden meaning very different from the one intended. */
-    parameter_bounds[p_delta_0][0] = 1e-6;     // delta_0           -- Scales effect of angular size on tau; bigger delta_0 = harder detection.
-    parameter_bounds[p_delta_0][1] = 1e-2;
+    parameter_bounds[p_delta_0][0] = 1e-7;     // delta_0           -- Scales effect of angular size on tau; bigger delta_0 = harder detection.
+    parameter_bounds[p_delta_0][1] = 1e-3;
     parameter_bounds[p_alpha_tau][0] = 1;      // alpha_tau          -- The factor by which having a search image reduces tau. Ranges from 1 (no effect) to 100x improvement.
     parameter_bounds[p_alpha_tau][1] = 100;
     parameter_bounds[p_alpha_d][0] = 1;        // alpha_d            -- The factor by which having a search images increases the effect of saccade time in reducing perceptual variance
@@ -122,8 +122,8 @@ void Forager::set_parameter_bounds() {
     parameter_bounds[p_A_0][1] = 1;
     parameter_bounds[p_t_s_0][0] = 0.1;       // t_s_0               -- Scales effect of saccade time on discrimination; bigger values incentivize longer saccades
     parameter_bounds[p_t_s_0][1] = 2.0;
-    parameter_bounds[p_discriminability][0] = 1.0;  // discriminability  -- Difference in mean preyishness between prey and debris, in units of the (equal) standard deviation of each.
-    parameter_bounds[p_discriminability][1] = 6.0;
+    parameter_bounds[p_discriminability][0] = 1.5;  // discriminability  -- Difference in mean preyishness between prey and debris, in units of the (equal) standard deviation of each.
+    parameter_bounds[p_discriminability][1] = 4.5;
     parameter_bounds[p_flicker_frequency][0] = 10;   // flicker_frequency             -- Base aptitude of the fish, i.e mean time-until-detection with no other effects present
     parameter_bounds[p_flicker_frequency][1] = 70;
     parameter_bounds[p_tau_0][0] = 0.01;   // tau_0             -- Base detection time on which other tau factors multiply except flicker frequency multiply

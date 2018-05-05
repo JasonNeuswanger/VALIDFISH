@@ -50,6 +50,18 @@ double PreyType::get_length() {
     return length;
 }
 
+double PreyType::get_prey_drift_concentration() {
+    return prey_drift_concentration;
+}
+
+double PreyType::get_debris_drift_concentration() {
+    return debris_drift_concentration;
+}
+
+double PreyType::get_energy_content() {
+    return energy_content;
+}
+
 double PreyType::get_diet_proportion() {
     return diet_proportion;
 }

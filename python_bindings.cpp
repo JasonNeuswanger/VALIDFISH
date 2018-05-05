@@ -26,7 +26,10 @@ PYBIND11_MODULE(pyvalidfish, m) {
             .def("get_max_visible_distance", &PreyType::get_max_visible_distance)
             .def("get_max_attended_distance", &PreyType::get_max_attended_distance)
             .def("get_name", &PreyType::get_name)
-            .def("get_length", &PreyType::get_length);
+            .def("get_length", &PreyType::get_length)
+            .def("get_prey_drift_concentration", &PreyType::get_prey_drift_concentration)
+            .def("get_debris_drift_concentration", &PreyType::get_debris_drift_concentration)
+            .def("get_energy_content", &PreyType::get_energy_content);
 
     /* --------------------- Forager class and components ----------------------- */
 

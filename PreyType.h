@@ -44,8 +44,11 @@ public:
     double get_true_hit_probability();
     double get_max_visible_distance();
     double get_max_attended_distance();
+    double get_prey_drift_concentration();
+    double get_debris_drift_concentration();
+    double get_energy_content();
 
-};
+    };
 
 
 #endif //DRIFTMODELC_PREYTYPE_H
