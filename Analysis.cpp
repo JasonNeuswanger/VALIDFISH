@@ -322,9 +322,6 @@ double Forager::pursuit_rate(std::string which_rate, std::shared_ptr<PreyType> p
         const double v = water_velocity(z);
         double pd, pf, ph, dp, dd;
         for (auto & ipt : types) {
-            if (ipt == nullptr) {
-                printf("ERROR: Somehow inner prey type is null in numerator!!! Called with %lu types.\n", types.size());
-            }
             pd = detection_probability(*x, z, ipt);
             pf = ipt->false_positive_probability;
             ph = ipt->true_hit_probability;
@@ -341,15 +338,12 @@ double Forager::pursuit_rate(std::string which_rate, std::shared_ptr<PreyType> p
     gsl_function_pp_3d<decltype(numerator_integrand)> Fn(numerator_integrand, &y, &x);
     gsl_function *Fnumerator = static_cast<gsl_function *>(&Fn);
     double numerator = integrate_over_xz_plane(Fnumerator, false);
-    auto denominator_integrand = [this, types](double z, double *y, double *x) -> double {
+    auto denominator_integrand = [this](double z, double *y, double *x) -> double {
         ++denominator_integrand_evaluations;
         double sum = 0;
         const double v = water_velocity(z);
         double pd, pf, ph, h, dp, dd;
-        for (auto &ipt : types) {
-            if (ipt == nullptr) {
-                printf("ERROR: Somehow inner prey type is null in denominator!!! Called with %lu types.\n", types.size());
-            }
+        for (auto &ipt : prey_types) {
             pd = detection_probability(*x, z, ipt);
             pf = ipt->false_positive_probability;
             ph = ipt->true_hit_probability;
