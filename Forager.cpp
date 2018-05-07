@@ -122,7 +122,7 @@ void Forager::set_parameter_bounds() {
     parameter_bounds[p_A_0][1] = 10;
     parameter_bounds[p_t_s_0][0] = 0.1;       // t_s_0               -- Scales effect of saccade time on discrimination; bigger values incentivize longer saccades
     parameter_bounds[p_t_s_0][1] = 2.0;
-    parameter_bounds[p_discriminability][0] = 1.5;  // discriminability  -- Difference in mean preyishness between prey and debris, in units of the (equal) standard deviation of each.
+    parameter_bounds[p_discriminability][0] = 1.7;  // discriminability  -- Difference in mean preyishness between prey and debris, in units of the (equal) standard deviation of each.
     parameter_bounds[p_discriminability][1] = 4.5;
     parameter_bounds[p_flicker_frequency][0] = 10;   // flicker_frequency             -- Base aptitude of the fish, i.e mean time-until-detection with no other effects present
     parameter_bounds[p_flicker_frequency][1] = 70;
