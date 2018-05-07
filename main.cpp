@@ -30,9 +30,9 @@ int main() {
                             0.3,    // double surface_z,
                             11,     // unsigned temperature,
                             0.05,   // double bed_roughness,
-                            1.0,    // double discriminability,
+                            2.0,    // double discriminability,
                             0.1,    // double tau_0,
-                            30,     // double flicker_frequency,
+                            50,     // double flicker_frequency,
                             1e-3,  //double nu,
                             &maneuver_interpolation_path);
     forager->build_sample_prey_types();

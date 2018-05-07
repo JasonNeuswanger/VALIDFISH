@@ -110,25 +110,25 @@ void Forager::set_strategy_bounds() {
 void Forager::set_parameter_bounds() {
     /* All parameter bounds were set via a priori consieration of their intended functions and plausible values in those roles.
      * They therefore cannot be grossly overfitted to serve some hidden meaning very different from the one intended. */
-    parameter_bounds[p_delta_0][0] = 1e-7;     // delta_0           -- Scales effect of angular size on tau; bigger delta_0 = harder detection.
-    parameter_bounds[p_delta_0][1] = 1e-3;
+    parameter_bounds[p_delta_0][0] = 1e-6;     // delta_0           -- Scales effect of angular size on tau; bigger delta_0 = harder detection.
+    parameter_bounds[p_delta_0][1] = 1e-2;
     parameter_bounds[p_alpha_tau][0] = 1;      // alpha_tau          -- The factor by which having a search image reduces tau. Ranges from 1 (no effect) to 100x improvement.
     parameter_bounds[p_alpha_tau][1] = 100;
     parameter_bounds[p_alpha_d][0] = 1;        // alpha_d            -- The factor by which having a search images increases the effect of saccade time in reducing perceptual variance
     parameter_bounds[p_alpha_d][1] = 100;
-    parameter_bounds[p_beta][0] = 1e-1;     // beta              -- Scales effect of set size on tau; larger beta = harder detection, more incentive to drop debris-laden prey
-    parameter_bounds[p_beta][1] = 1e1;
+    parameter_bounds[p_beta][0] = 1e-3;     // beta              -- Scales effect of set size on tau; larger beta = harder detection, more incentive to drop debris-laden prey
+    parameter_bounds[p_beta][1] = 1e3;
     parameter_bounds[p_A_0][0] = 0.001;      // A_0               -- Spatial attention constant, scales effect of theta on tau; smaller A_0 = harder detection.
-    parameter_bounds[p_A_0][1] = 1;
+    parameter_bounds[p_A_0][1] = 10;
     parameter_bounds[p_t_s_0][0] = 0.1;       // t_s_0               -- Scales effect of saccade time on discrimination; bigger values incentivize longer saccades
     parameter_bounds[p_t_s_0][1] = 2.0;
     parameter_bounds[p_discriminability][0] = 1.5;  // discriminability  -- Difference in mean preyishness between prey and debris, in units of the (equal) standard deviation of each.
     parameter_bounds[p_discriminability][1] = 4.5;
     parameter_bounds[p_flicker_frequency][0] = 10;   // flicker_frequency             -- Base aptitude of the fish, i.e mean time-until-detection with no other effects present
     parameter_bounds[p_flicker_frequency][1] = 70;
-    parameter_bounds[p_tau_0][0] = 0.01;   // tau_0             -- Base detection time on which other tau factors multiply except flicker frequency multiply
-    parameter_bounds[p_tau_0][1] = 10;
-    parameter_bounds[p_nu][0] = 1e-5;   // nu             -- Controls effect of loom on tau
+    parameter_bounds[p_tau_0][0] = 1e-3;   // tau_0             -- Base detection time on which other tau factors multiply except flicker frequency multiply
+    parameter_bounds[p_tau_0][1] = 1e3;
+    parameter_bounds[p_nu][0] = 1e-5;   // nu             -- Controls effect of loom on tau. Large nu = small effect.
     parameter_bounds[p_nu][1] = 1e-2;
 }
 
@@ -254,13 +254,28 @@ void Forager::compute_angular_resolution() {
 }
 
 void Forager::compute_set_size(bool verbose) {
+    // First, compute an adjustment for spatial attention that equals the integral under the portion of the attention
+    // distribution PDF that lies below the level corresponding to a uniform attention distribution. In other words,
+    // selectively unattended areas count less toward set size, but selectively more attended areas still only count
+    // each item as 1 toward set size.
+    const double halfFOV = theta / 2;
+    const double attention_level_if_uniformly_distributed = 1 / theta;
+    auto integrand = [this, halfFOV, attention_level_if_uniformly_distributed](double angle)->double{
+        double attention_dist = gsl_ran_gaussian_pdf(angle/sigma_A, sigma_A) / (sigma_A * (gsl_cdf_gaussian_P(halfFOV/sigma_A, sigma_A) - (gsl_cdf_gaussian_P(-halfFOV/sigma_A, sigma_A))));
+        return fmin(attention_dist, attention_level_if_uniformly_distributed);
+    };
+    gsl_function_pp<decltype(integrand)> Fp(integrand);
+    auto *F = static_cast<gsl_function*>(&Fp);
+    double spatial_attention_adjustment, error;
+    size_t neval;
+    gsl_integration_qng(F, -halfFOV, halfFOV, QUAD_EPSABS, QUAD_EPSREL, &spatial_attention_adjustment, &error, &neval);
+    // Now compute the rest of the set size
     double ss = 0;
     double set_volume, pt_ss;
     for (auto & pt : prey_types) {
         if (pt->search_image_status != PreyType::SearchImageStatus::search_image_exclusion) {
             set_volume = volume_within_radius(pt->max_attended_distance);
-            pt_ss = set_volume * (pt->prey_drift_concentration + pt->debris_drift_concentration);
-            // todo consider weighting set size by spatial attention, increasing incentive to attend forward
+            pt_ss = set_volume * (pt->prey_drift_concentration + pt->debris_drift_concentration) * spatial_attention_adjustment;
             ss += pt_ss;
             if (verbose) {
                 printf("For %20.20s, max. att. dist=%.3f, set_volume=%.6f, prey_concentration=%4.1f, debris_concentration=%8.1f, ss for pt=%.3f.\n",

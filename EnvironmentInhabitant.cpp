@@ -35,7 +35,7 @@ void Forager::add_prey_type(int number, std::string name, double mean_prey_lengt
                             bool search_image_eligible) {
     auto pt = std::make_shared<PreyType>(number, name, mean_prey_length, mean_prey_energy, prey_drift_concentration,
                                          debris_drift_concentration, search_image_eligible, crypticity);
-    if ((min_prey_length_from_gill_rakers > pt->length) || (pt->length > max_prey_length_from_mouth_gape)) {
+    if ((pt->length < min_prey_length_from_gill_rakers) || (pt->length > max_prey_length_from_mouth_gape)) {
         // If a prey type is too small or too large to physically eat, treat all prey items within that type as debris.
         pt->debris_drift_concentration += pt->prey_drift_concentration;
         pt->prey_drift_concentration = 0;

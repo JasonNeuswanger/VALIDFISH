@@ -20,7 +20,8 @@ inline double Forager::tau_effect_of_spatial_attention(double y, double distance
 }
 
 inline double Forager::tau_effect_of_set_size() {
-    return 1 + beta * saccade_time * set_size;
+    // return 1 + beta * saccade_time * set_size;
+    return (beta + saccade_time * set_size) / (1 + beta);
 }
 
 inline double Forager::tau_effect_of_angular_area(double distance, std::shared_ptr<PreyType> pt) {
@@ -31,7 +32,8 @@ inline double Forager::tau_effect_of_angular_area(double distance, std::shared_p
     if (angular_area <= min_angular_area) {
         return INFINITY;
     } else {
-        return delta_0 / (angular_area - min_angular_area);
+        // OLD -- also, this didn't reflect the equation in the paper, was missing a (1 + ...) -- return delta_0 / (angular_area - min_angular_area);
+        return delta_0 / (delta_0 + angular_area - min_angular_area);
     }
 }
 
