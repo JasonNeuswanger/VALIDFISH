@@ -73,7 +73,7 @@ private:
     // Functions in Forager.cpp
 
     void process_parameter_updates();       // Handles any change to parameters or strategy variables -- MAKE PRIVATE EVENTUALLY
-    double RateOfEnergyIntake(bool is_net); // Pass is_net = true for NREI, false for GREI
+    double RateOfEnergyIntake(bool is_net, bool is_cost); // Pass is_net = true for NREI, false for GREI
     void set_parameter_bounds();            // Ditto for parameter optimization bounds
     void set_strategy_bounds();
     void print_cache_sizes();               // Only used for diagnostics
@@ -183,8 +183,9 @@ public:
 
     double mean_maneuver_cost(double x, double z, std::shared_ptr<PreyType> pt, bool is_energy_cost, double det_prob);
 
-    double NREI();    // Net rate of energy intake
-    double GREI();    // Gross rate of energy intake
+    double NREI();                  // Net rate of energy intake
+    double GREI();                  // Gross rate of energy intake
+    double maneuver_cost_rate();    // Energy expenditure on maneuvers, per unit time
 
     // DetectionSubmodel.cpp
 
@@ -214,6 +215,7 @@ public:
     double get_fork_length_cm();
     double get_max_radius();
     double get_focal_velocity();
+    double get_focal_swimming_cost();
     double get_field_of_view();
     double get_foraging_attempt_rate();
     double get_proportion_of_attempts_ingested();

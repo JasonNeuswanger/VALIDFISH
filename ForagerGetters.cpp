@@ -60,6 +60,10 @@ double Forager::get_focal_velocity() {
     return focal_velocity;
 }
 
+double Forager::get_focal_swimming_cost() {
+    return focal_swimming_cost;
+}
+
 double Forager::get_foraging_attempt_rate() {
     return foraging_attempt_rate;
 }

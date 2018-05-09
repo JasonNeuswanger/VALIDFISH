@@ -315,10 +315,10 @@ double Forager::mean_maneuver_cost(double x, double z, std::shared_ptr<PreyType>
     return result;
 }
 
-double Forager::RateOfEnergyIntake(bool is_net) {
+double Forager::RateOfEnergyIntake(bool is_net, bool is_cost) {
     assert(num_prey_types() > 0);
     double x, y; // temporary holder for x values (y is required but unused) during the integrations
-    auto numerator_integrand = [this, is_net](double z, double *y, double *x)->double{
+    auto numerator_integrand = [this, is_net, is_cost](double z, double *y, double *x)->double{
         ++numerator_integrand_evaluations;
         double sum = 0;
         const double v = water_velocity(z);
@@ -328,8 +328,8 @@ double Forager::RateOfEnergyIntake(bool is_net) {
                 pd = detection_probability(*x, z, pt);
                 pf = pt->false_positive_probability;
                 ph = pt->true_hit_probability;
-                ch = (is_net) ? mean_maneuver_cost(*x, z, pt, true, pd) : 0;
-                E = pt->energy_content;
+                ch = (is_net || is_cost) ? mean_maneuver_cost(*x, z, pt, true, pd) : 0;
+                E = (is_cost) ? 0 : pt->energy_content;
                 dp = pt->prey_drift_concentration;
                 dd = pt->debris_drift_concentration;
                 sum += (pd * v * ((E - ch) * ph * dp - ch * pf * dd));
@@ -370,9 +370,13 @@ double Forager::RateOfEnergyIntake(bool is_net) {
 }
 
 double Forager::NREI() {    // Net rate of energy intake
-    return RateOfEnergyIntake(true);
+    return RateOfEnergyIntake(true, false);
 }
 
 double Forager::GREI() {    // Gross rate of energy intake
-    return RateOfEnergyIntake(false);
+    return RateOfEnergyIntake(false, false);
+}
+
+double Forager::maneuver_cost_rate() {
+    return -RateOfEnergyIntake(false, true); // negative sign changes the returned negative value to a positive cost value
 }

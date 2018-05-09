@@ -23,7 +23,7 @@ int main() {
                             1e-4,   // double delta_0,
                             10,     // double alpha_tau,
                             10,     // double alpha_d,
-                            0.05,   // double A_0,
+                            0.5,    // double A_0,
                             0.1,    // double t_s_0,
                             0.5,    // double beta,
                             -0.1,   // double bottom_z,
