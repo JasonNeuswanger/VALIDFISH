@@ -12,7 +12,8 @@ inline double Forager::tau_effect_of_spatial_attention(double y, double distance
     const double halfFOV = theta / 2;
     const double angle = acos(y / distance);
     const double attention_dist = gsl_ran_gaussian_pdf(angle/sigma_A, sigma_A) / (sigma_A * (gsl_cdf_gaussian_P(halfFOV/sigma_A, sigma_A) - (gsl_cdf_gaussian_P(-halfFOV/sigma_A, sigma_A))));
-    const double effect = (A_0 + 1/theta) / (A_0 + attention_dist);
+    //const double effect = (A_0 + 1/theta) / (A_0 + attention_dist);
+    const double effect = pow((1/theta)/attention_dist, A_0);
     if (isnan(effect)) {
         printf("TAU_ERROR: effect of spatial attentin is Nan with y=%.3f, dist=%.3f, A_0=%.3f, angle=%.3f, term1=%.8f, term2=%.8f.\n", y, distance, A_0, angle, gsl_cdf_gaussian_P(halfFOV/sigma_A, sigma_A), gsl_cdf_gaussian_P(-halfFOV/sigma_A, sigma_A));
     }
@@ -21,7 +22,8 @@ inline double Forager::tau_effect_of_spatial_attention(double y, double distance
 
 inline double Forager::tau_effect_of_set_size() {
     // return 1 + beta * saccade_time * set_size;
-    return (beta + saccade_time * set_size) / (1 + beta);
+    // return (beta + saccade_time * set_size) / (1 + beta);
+    return pow(saccade_time * set_size, beta);
 }
 
 inline double Forager::tau_effect_of_angular_area(double distance, std::shared_ptr<PreyType> pt) {

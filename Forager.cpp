@@ -116,10 +116,10 @@ void Forager::set_parameter_bounds() {
     parameter_bounds[p_alpha_tau][1] = 100;
     parameter_bounds[p_alpha_d][0] = 1;        // alpha_d            -- The factor by which having a search images increases the effect of saccade time in reducing perceptual variance
     parameter_bounds[p_alpha_d][1] = 100;
-    parameter_bounds[p_beta][0] = 1;     // beta              -- Scales effect of set size on tau
-    parameter_bounds[p_beta][1] = 1e3;
-    parameter_bounds[p_A_0][0] = 0.01;      // A_0               -- Spatial attention constant, scales effect of theta on tau; smaller A_0 = harder detection.
-    parameter_bounds[p_A_0][1] = 10;
+    parameter_bounds[p_beta][0] = 0;     // beta              -- Scales effect of set size on tau
+    parameter_bounds[p_beta][1] = 2;
+    parameter_bounds[p_A_0][0] = 0;      // A_0               -- Spatial attention constant, scales effect of theta on tau; smaller A_0 = harder detection.
+    parameter_bounds[p_A_0][1] = 2;
     parameter_bounds[p_t_s_0][0] = 0.1;       // t_s_0               -- Scales effect of saccade time on discrimination; bigger values incentivize longer saccades
     parameter_bounds[p_t_s_0][1] = 2.0;
     parameter_bounds[p_discriminability][0] = 1.5;  // discriminability  -- Difference in mean preyishness between prey and debris, in units of the (equal) standard deviation of each.
@@ -262,7 +262,8 @@ void Forager::compute_set_size(bool verbose) {
     const double attention_level_if_uniformly_distributed = 1 / theta;
     auto integrand = [this, halfFOV, attention_level_if_uniformly_distributed](double angle)->double{
         const double attention_dist = gsl_ran_gaussian_pdf(angle/sigma_A, sigma_A) / (sigma_A * (gsl_cdf_gaussian_P(halfFOV/sigma_A, sigma_A) - (gsl_cdf_gaussian_P(-halfFOV/sigma_A, sigma_A))));
-        const double attention_effect_on_tau = (A_0 + 1/theta) / (A_0 + attention_dist);
+        // const double attention_effect_on_tau = (A_0 + 1/theta) / (A_0 + attention_dist);
+        const double attention_effect_on_tau = pow((1/theta)/attention_dist, A_0);
         return fmin(1, 1/attention_effect_on_tau);
     };
     gsl_function_pp<decltype(integrand)> Fp(integrand);
