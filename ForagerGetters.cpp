@@ -32,10 +32,9 @@ double Forager::get_field_of_view() {
 
 double Forager::get_strategy(Strategy strategy) {
     switch (strategy) {
-        case s_delta_min: return delta_min;
         case s_sigma_A: return sigma_A;
         case s_mean_column_velocity: return mean_column_velocity;
-        case s_saccade_time: return saccade_time;
+        case s_inspection_time: return inspection_time;
         case s_discrimination_threshold: return discrimination_threshold;
         case s_search_image: return search_image;
     }
@@ -48,11 +47,14 @@ double Forager::get_parameter(Parameter parameter) {
         case p_alpha_d: return alpha_d;
         case p_beta: return beta;
         case p_A_0: return A_0;
-        case p_t_s_0: return t_s_0;
-        case p_discriminability: return discriminability;
         case p_flicker_frequency: return flicker_frequency;
         case p_tau_0: return tau_0;
-        case p_nu: return nu;
+        case p_nu_0: return nu_0;
+        case p_discriminability: return discriminability;
+        case p_delta_p: return delta_p;
+        case p_omega_p: return omega_p;
+        case p_ti_p: return ti_p;
+        case p_sigma_p_0: return sigma_p_0;
     }
 }
 

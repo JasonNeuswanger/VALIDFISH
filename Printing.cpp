@@ -14,11 +14,10 @@ void Forager::print_cache_sizes() {
 
 void Forager::print_strategy() {
     printf("Foraging strategy:\n");
-    printf("delta_min                : %.5f radians    (compare vs resolution %.5f radians)\n", delta_min, angular_resolution);
     printf("sigma_A                  : %.5f radians\n", sigma_A);
     printf("mean column velocity     : %.5f m/s        (focal velocity %.5f m/s)\n", mean_column_velocity,
            focal_velocity);
-    printf("saccade time             : %.8f s\n", saccade_time);
+    printf("inspection time          : %.8f s\n", inspection_time);
     printf("discrimination threshold : %.8f\n", discrimination_threshold);
     std::shared_ptr<PreyType> search_image_type = nullptr;
     for (auto & pt : prey_types) {
@@ -35,7 +34,7 @@ void Forager::print_strategy() {
 
 void Forager::print_parameters() {
     printf("Parameters:\n");
-    for (int pInt = p_delta_0; pInt <= p_nu; pInt++) {
+    for (int pInt = p_delta_0; pInt <= p_nu_0; pInt++) {
         auto p = static_cast<Parameter>(pInt);
         double value = get_parameter(p);
         if (value > 0.0001 && value < 10000) {
@@ -48,7 +47,7 @@ void Forager::print_parameters() {
 
 void Forager::print_discrimination_probabilities() {
     for (auto & pt : prey_types) {
-        printf("For category %20.20s, p(false_positive)=%.8f and p(true_hit)=%.8f. Perceptual sigma=%.8f\n", pt->name.c_str(), pt->false_positive_probability, pt->true_hit_probability, pt->perceptual_sigma);
+        printf("For category %20.20s, p(false_positive)=blank and p(true_hit)=blank. Perceptual sigma=blank (NOT IMPLEMENTED.)\n", pt->name.c_str()); // todo implement discrimination prob printing
     }
 }
 
@@ -69,7 +68,7 @@ void Forager::print_status() {
     compute_set_size(true); // prints set size substats
     printf("Set size is % .5f\n", set_size);
     printf("Focal swimming cost is % .5f\n", focal_swimming_cost);
-    print_discrimination_probabilities();
+    // print_discrimination_probabilities();
     print_analytics();
 
     // The ones below work okay for the example but get into trouble on real fish data because they go out of bounds.

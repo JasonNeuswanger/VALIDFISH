@@ -66,46 +66,10 @@ double PreyType::get_diet_proportion() {
     return diet_proportion;
 }
 
-double PreyType::get_perceptual_sigma() {
-    return perceptual_sigma;
-}
-
-double PreyType::get_false_positive_probability() {
-    return false_positive_probability;
-}
-
-double PreyType::get_true_hit_probability() {
-    return true_hit_probability;
-}
-
 double PreyType::get_max_visible_distance() {
     return max_visible_distance;
 }
 
-double PreyType::get_max_attended_distance() {
-    return max_attended_distance;
-}
-
-void PreyType::compute_details(double fork_length_cm, double saccade_time, double t_s_0, double discrimination_threshold, double discriminability, double alpha_d, double delta_min) {
+void PreyType::compute_details(double fork_length_cm) {
     max_visible_distance = 120. * length * (1. - exp(-0.2 * fork_length_cm));  // Hughes & Dill 1990, but with units converted so prey length and the returned answer are both in m
-    max_attended_distance = fmin(max_visible_distance, length / (M_PI * tan(delta_min / 2)));
-    double search_image_effect = 1;
-    switch (search_image_status) {
-        case no_search_image:
-            break; // stick with the default value of 1
-        case search_image_exclusion:
-            search_image_effect = 10000;
-            break;
-        case search_image_target:
-            search_image_effect = alpha_d;
-            break;
-    }
-    perceptual_sigma = sqrt(1 + t_s_0 / (search_image_effect * saccade_time));
-
-    false_positive_probability = 1 - gsl_cdf_gaussian_P(discrimination_threshold / perceptual_sigma, 1);
-    true_hit_probability = 1 - gsl_cdf_gaussian_P((discrimination_threshold - discriminability) / perceptual_sigma, 1);
-
-    probability_a_pursued_item_is_prey = prey_drift_concentration * true_hit_probability /
-                                                (prey_drift_concentration * true_hit_probability + debris_drift_concentration * false_positive_probability);
-    expected_energy_gain = energy_content * probability_a_pursued_item_is_prey;
 }

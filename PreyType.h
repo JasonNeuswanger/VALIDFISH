@@ -22,9 +22,7 @@ public:
     // Attributes that characterize the fish's current interaction with the prey type
     enum SearchImageStatus { search_image_target, search_image_exclusion, no_search_image };
     SearchImageStatus search_image_status;
-    double perceptual_sigma, false_positive_probability, true_hit_probability, max_visible_distance, max_attended_distance;
-    double probability_a_pursued_item_is_prey, expected_energy_gain; // expected energy gain factors in the probability the item will be prey
-
+    double max_visible_distance;
     double prey_pursuit_rate, debris_pursuit_rate, foraging_attempt_rate, proportion_of_attempts_ingested, diet_proportion;
 
     PreyType(int number, std::string name, double length, double energy_content,
@@ -34,16 +32,12 @@ public:
 
     bool operator< (const PreyType& pc) const; // For sorting
 
-    void compute_details(double fork_length_cm, double saccade_time, double t_s_0, double discrimination_threshold, double discriminability, double alpha_d, double delta_min);
+    void compute_details(double fork_length_cm);
 
     std::string get_name();
     double get_length();
     double get_diet_proportion();
-    double get_perceptual_sigma();
-    double get_false_positive_probability();
-    double get_true_hit_probability();
     double get_max_visible_distance();
-    double get_max_attended_distance();
     double get_prey_drift_concentration();
     double get_debris_drift_concentration();
     double get_energy_content();

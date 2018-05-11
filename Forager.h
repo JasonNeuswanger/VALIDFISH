@@ -31,7 +31,7 @@
 #define USE_ADAPTIVE_INTEGRATION false  // Set to false for the fastest algorithm and general use
 #define QUAD_SUBINT_LIM 100             // only relevant when using adaptive integration
 #define QUAD_EPSABS 0                   // always set to 0 to use relative instead
-#define QUAD_EPSREL 1e0                 // set precision, from 1e0 to 1e-3 or so (fast to slow) -- 1e0 works fine
+#define QUAD_EPSREL 1e-0                 // set precision, from 1e0 to 1e-3 or so (fast to slow) -- 1e0 works fine
 #define MEMOIZATION_PRECISION 1e-2      // spatial precision of the memoized caches, should be 0.01*QUAD_EPSREL or better
 #define GSL_ERROR_POLICY 0              // 0 to ignore GSL errors. 1 to print them but continue. 2 to abort (for debugging mode).
 #define DIAG_NOCACHE false              // Disable various internal caches (works MUCH more slowly if set to true)
@@ -49,17 +49,21 @@ private:
     double set_size, focal_velocity, focal_swimming_cost, angular_resolution;
 
     // Variables pertaining to characteristics of the environment
-    double surface_z, bottom_z, depth, bed_roughness, discriminability, flicker_frequency;
+    double surface_z, bottom_z, depth, discriminability, flicker_frequency;
 
-    // Model parameters
+    // Model parameters for detection
     double tau_0;                   // Bare minimum value all the other tau factors multiply
     double delta_0;                 // Scales the effect of angular size on tau
     double alpha_tau;               // Scales the effect of search image, if any, on tau
-    double alpha_d;                 // Scales the effect of search image, if any, on discrimination
-    double beta;                    // Scales the effect of saccade time * set size on tau
+    double beta;                    // Scales the effect of inspection time * set size on tau
     double A_0;                     // Scales the effect of spatial attention on tau; viewable as attentional capacity
-    double t_s_0;                   // Scales effect of feature-based attention and saccade time on discrimination
-    double nu;                      // Scales effect of loom on tau
+    double nu_0;                    // Scales effect of loom on tau
+    // Model parameters for discrimination
+    double delta_p;                 // Scales effect of angular size on perceptual variance
+    double omega_p;                 // Scales effect of angular velocity on perceptual variance
+    double ti_p;                    // Scales effect of inspection time on perceptual variance
+    double sigma_p_0;               // Base level of perceptual variance, whihc all other factors multiply.
+    double alpha_d;                 // Scales the effect of search image, if any, on discrimination
 
     // Scales relative effect of existing search volume vs incoming water volume on search rate
 
@@ -78,11 +82,28 @@ private:
     void set_strategy_bounds();
     void print_cache_sizes();               // Only used for diagnostics
 
+    // DetectionSubmodel.cpp
+
+    void compute_set_size(bool verbose);    // Forager.cpp
+    double integrate_detection_pdf(double x, double z, std::shared_ptr<PreyType> pt);
+    inline double expected_profit_for_item(double t, double x, double y, double z, double v, std::shared_ptr<PreyType> pt);
+
+    // DiscriminationSubmodel.cpp
+
+    double average_discrimination_probability_over_prey_path(double x, double z, std::shared_ptr<PreyType> pt, bool is_false_positive, double det_prob);
+    std::pair<double, double> discrimination_probabilities(double t, double x, double z, std::shared_ptr<PreyType> pt);
+    double discrimination_probability(double t, double x, double z, std::shared_ptr<PreyType> pt, bool is_false_positive);
+    std::pair<double, double> mean_discrimination_probabilities(double x, double z, std::shared_ptr<PreyType> pt, double det_prob);
+    double perceptual_variance(double t, double x, double z, std::shared_ptr<PreyType> pt);
+    inline double perception_effect_of_angular_area(double distance, std::shared_ptr<PreyType> pt);
+    inline double perception_effect_of_angular_velocity(double v, double t, double xsq, double zsq, double rsq, std::shared_ptr<PreyType> pt);
+    inline double perception_effect_of_search_image(std::shared_ptr<PreyType> pt);
+    inline double perception_effect_of_inspection_time();
+
     // Geometry.cpp
 
     double integrate_over_xz_plane(gsl_function *func, bool integrand_is_1d);
     double integrate_over_volume(gsl_function *func, double min_rho, double max_rho, double min_theta, double max_theta);
-    double integrate_detection_pdf(double x, double z, std::shared_ptr<PreyType> pt);
     double* random_xz();
 
     // EnvironmentInhabitant.cpp
@@ -96,10 +117,7 @@ private:
     // General recalculating
 
     void compute_angular_resolution();      // Forager.cpp
-    void compute_set_size(bool verbose);    // Forager.cpp
-    // Forager.cpp
     void compute_focal_velocity();          // EnvironmentInhabitant.cpp
-    // Forager.cpp
 
     // Caches to save the results of expensive calculations that are repeated exactly (i.e., memoization)
 
@@ -122,18 +140,16 @@ private:
 
     double pursuit_rate(std::string which_rate, std::shared_ptr<PreyType> pt);
 
-
 public:
 
-    enum Strategy { s_delta_min, s_sigma_A, s_mean_column_velocity, s_saccade_time, s_discrimination_threshold, s_search_image };   // attention included only to specify bounds
-    enum Parameter { p_delta_0, p_alpha_tau, p_alpha_d, p_beta, p_A_0, p_t_s_0, p_discriminability, p_flicker_frequency, p_tau_0, p_nu };
+    enum Strategy { s_sigma_A, s_mean_column_velocity, s_inspection_time, s_discrimination_threshold, s_search_image };   // attention included only to specify bounds
+    enum Parameter { p_delta_0, p_alpha_tau, p_alpha_d, p_beta, p_A_0, p_discriminability, p_flicker_frequency, p_tau_0, p_nu_0, p_delta_p, p_omega_p, p_ti_p, p_sigma_p_0};
 
     // Name map so feedback about parameters (validation problems, etc) can print out the actual name and not just a number.
     std::map<Strategy, std::string> strategy_names = {
-            {s_delta_min, "delta_min"}, // todo consider removing delta_min, as there are already mechanisms for large fish to ignore small items
             {s_sigma_A, "sigma_A"},
             {s_mean_column_velocity, "mean_column_velocity"},
-            {s_saccade_time, "saccade_time"},
+            {s_inspection_time, "inspection_time"},
             {s_discrimination_threshold, "discrimination_threshold"},
             {s_search_image, "search_image"}
     };
@@ -143,11 +159,14 @@ public:
             {p_alpha_d, "alpha_d"},
             {p_beta, "beta"},
             {p_A_0, "A_0"},
-            {p_t_s_0, "t_s_0"},
             {p_discriminability, "discriminability"},
             {p_flicker_frequency, "flicker_frequency"},
             {p_tau_0, "tau_0"},
-            {p_nu, "nu"}
+            {p_nu_0, "nu_0"},
+            {p_delta_p, "delta_p"},
+            {p_omega_p, "omega_p"},
+            {p_ti_p, "ti_p"},
+            {p_sigma_p_0, "sigma_p_0"}
     };
 
     double validate(Strategy s, double v);
@@ -160,22 +179,24 @@ public:
     ParameterBoundsMap parameter_bounds;
 
     double theta = 1.85 * M_PI; // todo find field-of-view from the literature
-    double delta_min, sigma_A, mean_column_velocity, saccade_time, discrimination_threshold, search_image; // TEMPORARILY PUBLIC, SHOULD MAKE PRIVATE
+    double sigma_A, mean_column_velocity, inspection_time, discrimination_threshold, search_image; // TEMPORARILY PUBLIC, SHOULD MAKE PRIVATE
 
     // Forager.cpp
 
-    Forager(double fork_length_cm, double mass_g, double delta_min, double sigma_A, double mean_column_velocity,
-                double saccade_time, double discrimination_threshold, double search_image, double delta_0, double alpha_tau,
-                double alpha_d, double A_0, double t_s_0, double beta, double bottom_z, double surface_z,
-                unsigned temperature, double bed_roughness, double discriminability, double tau_0, double flicker_frequency,
-                double nu, std::string *maneuver_interpolation_csv_base_path);
+    Forager(double fork_length_cm, double mass_g, double sigma_A, double mean_column_velocity,
+                double inspection_time, double discrimination_threshold, double search_image, double delta_0, double alpha_tau,
+                double alpha_d, double A_0, double beta, double bottom_z, double surface_z,
+                unsigned temperature, double tau_0, double flicker_frequency, double nu,
+                double discriminability, double delta_p, double omega_p, double ti_p, double sigma_p_0, std::string *maneuver_interpolation_csv_base_path); // todo add new params here
     Forager(Forager *otherForager);     // Copy constructor
     virtual ~Forager();                 // Destructor
 
-    void set_strategies(double radius, double sigma_A, double mean_column_velocity, double saccade_time,
+    void set_strategies(double sigma_A, double mean_column_velocity, double inspection_time,
                         double discrimination_threshold, double search_image);
-    void set_parameters(double delta_0, double alpha_tau, double alpha_d, double beta, double A_0, double t_s_0,
-                        double discriminability, double flicker_frequency, double tau_0, double nu);
+    void set_parameters(double delta_0, double alpha_tau, double alpha_d, double beta, double A_0,
+                        double flicker_frequency, double tau_0, double nu_0,
+                        double discriminability, double delta_p, double omega_p, double ti_p, double sigma_p_0);
+
     void set_strategy(Strategy strategy, double value);
     void set_parameter(Parameter parameter, double value);
     void set_single_strategy_bounds(Strategy strategy, double lower_bound, double upper_bound);
@@ -256,8 +277,6 @@ public:
     double relative_pursuits_by_position_single_prey_type(double x, double y, double z, std::shared_ptr<PreyType> pt);
     double relative_pursuits_by_position(double x, double y, double z); // sums the above over all prey categories
     std::map<std::string, std::vector<std::map<std::string, double>>> spatial_detection_proportions(std::shared_ptr<PreyType> pt, std::string which_items, bool verbose);
-    double proportion_of_detections_within(double min_distance, double max_distance, double min_angle, double max_angle,
-                                           std::shared_ptr<PreyType> pt, std::string *which_items);
 
 };
 

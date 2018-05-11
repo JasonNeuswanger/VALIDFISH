@@ -8,7 +8,7 @@ double Forager::depletable_detection_probability(double x, double y, double z, s
     /* This function gives the probability of getting to a position undetected times the detection PDF at that
      * point. */
     if (z > surface_z || z < bottom_z) { return 0; }
-    double prey_radius = pt->get_max_attended_distance();
+    double prey_radius = pt->get_max_visible_distance();
     const double xsq = gsl_pow_2(x);
     const double ysq = gsl_pow_2(y);
     const double zsq = gsl_pow_2(z);
@@ -46,7 +46,7 @@ double Forager::relative_pursuits_by_position_single_prey_type(double x, double 
      * However, it's based on probability densities, so it can't really translate into meaningful units unless it's
      * integrated over some volume. */
     if (z > surface_z || z < bottom_z) { return 0; }
-    double prey_radius = pt->get_max_attended_distance();
+    double prey_radius = pt->get_max_visible_distance();
     const double xsq = gsl_pow_2(x);
     const double ysq = gsl_pow_2(y);
     const double zsq = gsl_pow_2(z);
@@ -75,7 +75,10 @@ double Forager::relative_pursuits_by_position_single_prey_type(double x, double 
     const double probability_of_no_previous_detection = 1 - result;
     const double tau_y = tau(t_y, x, z, pt);
     const double probability_of_detection_at_y = exp(-t_y / tau_y) / tau_y; // probability of detecting in one second (detection PDF) at position y
-    const double answer = probability_of_no_previous_detection * probability_of_detection_at_y * v * pt->prey_drift_concentration * pt->true_hit_probability;
+    auto dps = discrimination_probabilities(t_y, x, z, pt);
+    double false_positive_probability = dps.first;
+    double true_hit_probability = dps.second;
+    const double answer = probability_of_no_previous_detection * probability_of_detection_at_y * v * (pt->prey_drift_concentration * true_hit_probability + pt->debris_drift_concentration * false_positive_probability);
     return answer;
 }
 
@@ -115,9 +118,9 @@ std::map<std::string, std::vector<std::map<std::string, double>>> Forager::spati
     }
     auto main_lambda = [this, which_items](std::shared_ptr<PreyType> ipt, double min_distance, double max_distance, double min_angle, double max_angle) {  // integrates same function as above, but over the whole search volume
         //if (ipt->prey_drift_concentration == 0 && ipt->debris_drift_concentration == 0) { return 0.0; }
-        if (ipt->prey_drift_concentration == 0) { return 0.0; } // todo relax this assumption... this is a quick hack to speed up output
+        if (ipt->prey_drift_concentration == 0) { return 0.0; } // could relax this assumption... this is a quick hack to speed up output
         double inner_theta, inner_phi;  // placeholders for the inner integrands
-        double max_possible_distance = ipt->get_max_attended_distance();
+        double max_possible_distance = ipt->get_max_visible_distance();
         double truncated_min_distance = (min_distance > max_possible_distance) ? max_possible_distance : min_distance;
         double truncated_max_distance = (max_distance > max_possible_distance) ? max_possible_distance : max_distance;
         if (truncated_min_distance == truncated_max_distance) { return 0.0; }
@@ -126,12 +129,17 @@ std::map<std::string, std::vector<std::map<std::string, double>>> Forager::spati
             if (coords.z > surface_z || coords.z < bottom_z) { return 0; }
             double v = water_velocity(coords.z);
             double prob = depletable_detection_probability(coords.x, coords.y, coords.z, ipt) * v;
+            double rsq = gsl_pow_2(ipt->max_visible_distance);
+            double t = (sqrt(rsq - gsl_pow_2(coords.x) - gsl_pow_2(coords.z)) - coords.y) / v;
+            auto dps = discrimination_probabilities(t, coords.x, coords.z, ipt);
+            double false_positive_probability = dps.first;     // false positive probability
+            double true_hit_probability = dps.second;    // true hit probability
             if (which_items == "Prey") {
-                prob *= ipt->prey_drift_concentration * ipt->true_hit_probability;
+                prob *= ipt->prey_drift_concentration * true_hit_probability;
             } else if (which_items == "Debris") {
-                prob *= ipt->debris_drift_concentration * ipt->false_positive_probability;
+                prob *= ipt->debris_drift_concentration * false_positive_probability;
             } else if (which_items == "All") {
-                prob *= (ipt->prey_drift_concentration * ipt->true_hit_probability + ipt->debris_drift_concentration * ipt->false_positive_probability);
+                prob *= (ipt->prey_drift_concentration * true_hit_probability + ipt->debris_drift_concentration * false_positive_probability);
             }
             if (isnan(prob)) {
                 printf("******** NaN returned for totals at v=%.8f, (x,y,z)=(%.5f, %.5f, %.5f), for prey type %s items %s.\n", v, coords.x, coords.y, coords.z, ipt->name.c_str(), which_items.c_str());
@@ -212,82 +220,6 @@ std::map<std::string, std::vector<std::map<std::string, double>>> Forager::spati
     return combined_results;
 }
 
-double Forager::proportion_of_detections_within(double min_distance, double max_distance, double min_angle, double max_angle,
-                                                std::shared_ptr<PreyType> pt, std::string *which_items) {
-    /* Pass PreyType = NULL to get overall detections -- right now, that's the default. Want to allow specific categories.
-     * Pass min_distance and max_distance = NAN to calculate proportions within a given angle.
-     * Pass min_angle and max_angle = NAN to calculate proportions within a given distance. */
-
-    //todo When I make this faster, add a verbose option that prints out the component proportions one-by-one. Calculate total first, so others are proportions.
-    //todo Maybe parallelize, too? or will there be cache write conflicts / NaNs that require locks? shouldn't be many writes here...
-
-    assert((isnan(min_distance) && isnan(max_distance)) || (min_distance >= 0 && max_distance <= max_radius));
-    assert((isnan(min_angle) && isnan(max_angle)) || (min_angle >= 0 && max_angle <= theta));
-    assert(*which_items == "Prey" || *which_items == "Debris" || *which_items == "All");
-    if ((min_distance == max_distance) || (min_angle == max_angle)) {
-        return 0;   // Sometimes comes up when trucating intended distance categories to fit within the foraging radius
-    }
-    auto region_lambda = [this, min_distance, max_distance, min_angle, max_angle, which_items](std::shared_ptr<PreyType> ipt) { // integrates over the requested slice of the search volume
-        double inner_theta, inner_phi;  // placeholders for the inner integrands
-        auto integrand = [this, ipt, which_items](double rho, double *theta, double *phi)->double{
-            cartesian_3D_coords coords = cartesian_from_spherical(rho, *theta, *phi);
-            if (coords.z > surface_z || coords.z < bottom_z) { return 0; }
-            double v = water_velocity(coords.z);
-            double prob = depletable_detection_probability(coords.x, coords.y, coords.z, ipt) * v;
-            if (*which_items == "Prey") {
-                prob *= ipt->prey_drift_concentration * ipt->true_hit_probability;
-            } else if (*which_items == "Debris") {
-                prob *= ipt->debris_drift_concentration * ipt->false_positive_probability;
-            } else if (*which_items == "All") {
-                prob *= (ipt->prey_drift_concentration * ipt->true_hit_probability + ipt->debris_drift_concentration * ipt->false_positive_probability);
-            }
-            return prob;
-        };
-        gsl_function_pp_3d<decltype(integrand)> Fintegrand(integrand, &inner_theta, &inner_phi);
-        auto *F = static_cast<gsl_function*>(&Fintegrand);
-        double result = integrate_over_volume(F, min_distance, max_distance, min_angle, max_angle);
-        if (isnan(result)) {
-            printf("******** NaN returned for distance (%.8f,%.8f) for prey type %s items %s.\n", min_distance, max_distance, ipt->name.c_str(), which_items->c_str());
-        }
-        return result;
-    };
-
-    auto total_lambda = [this, which_items](std::shared_ptr<PreyType> ipt) {  // integrates same function as above, but over the whole search volume
-        double inner_theta, inner_phi;  // placeholders for the inner integrands
-        auto integrand = [this, ipt, which_items](double rho, double *theta, double *phi)->double{
-            cartesian_3D_coords coords = cartesian_from_spherical(rho, *theta, *phi);
-            if (coords.z > surface_z || coords.z < bottom_z) { return 0; }
-            double v = water_velocity(coords.z);
-            double prob = depletable_detection_probability(coords.x, coords.y, coords.z, ipt) * v;
-            if (*which_items == "Prey") {
-                prob *= ipt->prey_drift_concentration * ipt->true_hit_probability;
-            } else if (*which_items == "Debris") {
-                prob *= ipt->debris_drift_concentration * ipt->false_positive_probability;
-            } else if (*which_items == "All") {
-                prob *= (ipt->prey_drift_concentration * ipt->true_hit_probability + ipt->debris_drift_concentration * ipt->false_positive_probability);
-            }
-            return prob;
-        };
-        gsl_function_pp_3d<decltype(integrand)> Fintegrand(integrand, &inner_theta, &inner_phi);
-        auto *F = static_cast<gsl_function*>(&Fintegrand);
-        return integrate_over_volume(F, NAN, NAN, NAN, NAN);
-    };
-
-    std::vector<std::shared_ptr<PreyType>> types;
-    if (pt == nullptr) {
-        types = prey_types;                              // Run through all types if type was given as "All"
-    } else {
-        types.push_back(pt);
-    }
-    double region_result = 0;
-    double total_result = 0;
-    for (auto & ipt : types) {
-        region_result += region_lambda(ipt);
-        total_result += total_lambda(ipt);
-    };
-    return region_result / total_result;
-}
-
 std::shared_ptr<PreyType> Forager::get_favorite_prey_type() {
     // Returns the favorite prey type by quantity of prey pursued
     std::shared_ptr<PreyType> favorite;
@@ -323,8 +255,9 @@ double Forager::pursuit_rate(std::string which_rate, std::shared_ptr<PreyType> p
         double pd, pf, ph, dp, dd;
         for (auto & ipt : types) {
             pd = detection_probability(*x, z, ipt);
-            pf = ipt->false_positive_probability;
-            ph = ipt->true_hit_probability;
+            auto mdps = mean_discrimination_probabilities(*x, z, ipt, pd);
+            pf = mdps.first;     // false positive probability
+            ph = mdps.second;    // true hit probability
             dp = ipt->prey_drift_concentration;
             dd = ipt->debris_drift_concentration;
             if (which_rate == "prey") {
@@ -345,8 +278,9 @@ double Forager::pursuit_rate(std::string which_rate, std::shared_ptr<PreyType> p
         double pd, pf, ph, h, dp, dd;
         for (auto &ipt : prey_types) {
             pd = detection_probability(*x, z, ipt);
-            pf = ipt->false_positive_probability;
-            ph = ipt->true_hit_probability;
+            auto mdps = mean_discrimination_probabilities(*x, z, ipt, pd);
+            pf = mdps.first;     // false positive probability
+            ph = mdps.second;    // true hit probability
             h = mean_maneuver_cost(*x, z, ipt, false, pd);
             dp = ipt->prey_drift_concentration;
             dd = ipt->debris_drift_concentration;

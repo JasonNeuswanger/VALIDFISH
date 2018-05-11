@@ -136,7 +136,7 @@ double Forager::integrate_over_xz_plane(gsl_function *func, bool integrand_is_1d
 }
 
 double Forager::integrate_energy_cost_over_prey_path(double x, double z, std::shared_ptr<PreyType> pt, bool is_energy_cost) {
-    const double prey_radius = pt->get_max_attended_distance();
+    const double prey_radius = pt->get_max_visible_distance();
     const double xsq = gsl_pow_2(x);
     const double zsq = gsl_pow_2(z);
     const double rsq = gsl_pow_2(prey_radius);
@@ -175,7 +175,7 @@ double Forager::integrate_energy_cost_over_prey_path(double x, double z, std::sh
 double Forager::passage_time(double x, double z, std::shared_ptr<PreyType> pt) {
     /* Returns the duration of time (s) for which the item at (x, z) is passing through the search volume
      * This is only used in integrate_detection_pdf below, but it's also shared in the Python module for analysis. */
-    const double prey_radius = pt->get_max_attended_distance();
+    const double prey_radius = pt->get_max_visible_distance();
     const double xsq = gsl_pow_2(x);
     const double zsq = gsl_pow_2(z);
     const double rsq = gsl_pow_2(prey_radius);
@@ -184,36 +184,6 @@ double Forager::passage_time(double x, double z, std::shared_ptr<PreyType> pt) {
     const double y0 = sqrt(rsq - xsq - zsq);
     const double yT = fmax(-y0, cot(theta/2) * sqrt(xsq + zsq));
     return (y0 - yT) / water_velocity(z);
-}
-
-double Forager::integrate_detection_pdf(double x, double z, std::shared_ptr<PreyType> pt) {
-    /* Integrates the detection pdf over the prey's path from t=0 to t=T */
-    const double T = passage_time(x, z, pt);
-    if (T <= 0) { return 0; }  // If (x, z) are outside the search volume, detection probability is 0.
-    auto integrand = [this, x, z, pt](double t)->double{
-        double tauval = tau(t, x, z, pt);
-        if (isfinite(tauval)) {
-            return exp(-t / tauval) / tauval;
-        } else {
-            return 0.;
-        }
-    };
-    gsl_function_pp<decltype(integrand)> Fp(integrand);
-    gsl_function *F = static_cast<gsl_function*>(&Fp);
-    double result, error;
-    #if USE_ADAPTIVE_INTEGRATION
-        gsl_integration_workspace *w = gsl_integration_workspace_alloc(QUAD_SUBINT_LIM);
-        gsl_integration_qags(F, 0, T, QUAD_EPSABS, QUAD_EPSREL, QUAD_SUBINT_LIM, w, &result, &error);
-        gsl_integration_workspace_free(w);
-    #else
-        size_t neval;
-        gsl_integration_qng(F, 0, T, QUAD_EPSABS, QUAD_EPSREL, &result, &error, &neval);
-    #endif
-    assert(isfinite(result));
-    if (!isfinite(result)) {
-        printf("TAU_ERROR Detection PDF integral returned non-finite result %.3f for T=%.3f at (x,z)=(%.3f,%.3f) for prey type %s.\n", result, T, x, z, pt->name.c_str());
-    }
-    return result;
 }
 
 double* Forager::random_xz() {

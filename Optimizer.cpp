@@ -9,7 +9,7 @@ Optimizer::Optimizer(Forager *initial_forager, size_t max_iterations, size_t pac
     this->max_iterations = max_iterations;
     this->pack_size = pack_size; // Probably ideally a multiple of the # of processor cores?
     this->verbose = verbose;
-    n_vars = 6;
+    n_vars = 5;
     srand(time(NULL));  // Seed the random number generator for the creation of random wolves
     if (initial_forager->num_search_image_eligible_prey_types() == 0) {
         add_context(Forager::s_search_image, -1);   // don't try to optimize search image if no prey types are eligible
@@ -56,23 +56,21 @@ void Optimizer::clear_context() {
 wolf_type Optimizer::random_wolf() {    // Only used on initialization
     wolf_type wolf;
     wolf.params = ArrayXd::Random(n_vars, 1).abs(); // is this line necessary?
-    wolf.params[0] = validated_random_parameter_value(Forager::s_delta_min);
-    wolf.params[1] = validated_random_parameter_value(Forager::s_sigma_A);
-    wolf.params[2] = validated_random_parameter_value(Forager::s_mean_column_velocity);
-    wolf.params[3] = validated_random_parameter_value(Forager::s_saccade_time);
-    wolf.params[4] = validated_random_parameter_value(Forager::s_discrimination_threshold);
-    wolf.params[5] = validated_random_parameter_value(Forager::s_search_image);
+    wolf.params[0] = validated_random_parameter_value(Forager::s_sigma_A);
+    wolf.params[1] = validated_random_parameter_value(Forager::s_mean_column_velocity);
+    wolf.params[2] = validated_random_parameter_value(Forager::s_inspection_time);
+    wolf.params[3] = validated_random_parameter_value(Forager::s_discrimination_threshold);
+    wolf.params[4] = validated_random_parameter_value(Forager::s_search_image);
     return wolf;
 }
 
 void Optimizer::enforce_bounds_and_constraints() {
     for (auto & wolf : wolves) {
-        wolf.params[0] = trim_to_bounds(wolf.params[0], initial_forager->strategy_bounds[Forager::s_delta_min]);
-        wolf.params[1] = trim_to_bounds(wolf.params[1], initial_forager->strategy_bounds[Forager::s_sigma_A]);
-        wolf.params[2] = trim_to_bounds(wolf.params[2], initial_forager->strategy_bounds[Forager::s_mean_column_velocity]);
-        wolf.params[3] = trim_to_bounds(wolf.params[3], initial_forager->strategy_bounds[Forager::s_saccade_time]);
-        wolf.params[4] = trim_to_bounds(wolf.params[4], initial_forager->strategy_bounds[Forager::s_discrimination_threshold]);
-        wolf.params[5] = trim_to_bounds(wolf.params[5], initial_forager->strategy_bounds[Forager::s_search_image]);
+        wolf.params[0] = trim_to_bounds(wolf.params[0], initial_forager->strategy_bounds[Forager::s_sigma_A]);
+        wolf.params[1] = trim_to_bounds(wolf.params[1], initial_forager->strategy_bounds[Forager::s_mean_column_velocity]);
+        wolf.params[2] = trim_to_bounds(wolf.params[2], initial_forager->strategy_bounds[Forager::s_inspection_time]);
+        wolf.params[3] = trim_to_bounds(wolf.params[3], initial_forager->strategy_bounds[Forager::s_discrimination_threshold]);
+        wolf.params[4] = trim_to_bounds(wolf.params[4], initial_forager->strategy_bounds[Forager::s_search_image]);
     }
 }
 
@@ -208,12 +206,11 @@ void Optimizer::calculate_wolf_fitnesses() {
 
 void Optimizer::update_forager_from_wolf(Forager *forager, wolf_type *wolf) {
     forager->set_strategies(
-            wolf->params[0],       // delta_min
-            wolf->params[1],       // sigma_A
-            wolf->params[2],       // mean column velocity
-            wolf->params[3],       // saccade time
-            wolf->params[4],       // discrimination threshold
-            wolf->params[5]        // search image
+            wolf->params[0],       // sigma_A
+            wolf->params[1],       // mean column velocity
+            wolf->params[2],       // saccade time
+            wolf->params[3],       // discrimination threshold
+            wolf->params[4]        // search image
     );
 }
 

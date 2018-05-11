@@ -11,7 +11,7 @@ namespace py = pybind11;
 
 PYBIND11_MODULE(pyvalidfish, m) {
 
-    m.doc() = "Visual Attention-Limited Individual Drift Forager In Simulated Habitat (VALIDFISH) model in C++."; // optional module docstring
+    m.doc() = "Visual Attention-Limited Individual Drift Forager In Simulated Habitat (VALIDFISH) model in C++.";
 
     /* --------------------- Prey type class and components ----------------------- */
 
@@ -20,11 +20,7 @@ PYBIND11_MODULE(pyvalidfish, m) {
 
     preytype.def(py::init<int, std::string, double, double, double, double, bool, double>())
             .def("get_diet_proportion", &PreyType::get_diet_proportion)
-            .def("get_false_positive_probability", &PreyType::get_false_positive_probability)
-            .def("get_true_hit_probability", &PreyType::get_true_hit_probability)
-            .def("get_perceptual_sigma", &PreyType::get_perceptual_sigma)
             .def("get_max_visible_distance", &PreyType::get_max_visible_distance)
-            .def("get_max_attended_distance", &PreyType::get_max_attended_distance)
             .def("get_name", &PreyType::get_name)
             .def("get_length", &PreyType::get_length)
             .def("get_prey_drift_concentration", &PreyType::get_prey_drift_concentration)
@@ -36,7 +32,7 @@ PYBIND11_MODULE(pyvalidfish, m) {
     py::class_<Forager> forager(m, "Forager");
 
     forager.def(py::init<double, double, double, double, double, double, double, double, double, double, double, double,
-            double, double, double, double, unsigned, double, double , double, double, double, std::string *>())
+                    double, double, unsigned, double, double, double, double , double, double, double, double, std::string *>())
             .def("NREI", &Forager::NREI)
             .def("GREI", &Forager::GREI)
             .def("maneuver_cost_rate", &Forager::maneuver_cost_rate)
@@ -56,7 +52,6 @@ PYBIND11_MODULE(pyvalidfish, m) {
             .def("depletable_detection_probability", &Forager::depletable_detection_probability)
             .def("relative_pursuits_by_position", &Forager::relative_pursuits_by_position)
             .def("relative_pursuits_by_position_single_prey_type", &Forager::relative_pursuits_by_position_single_prey_type)
-            .def("proportion_of_detections_within", &Forager::proportion_of_detections_within)
             .def("spatial_detection_proportions", &Forager::spatial_detection_proportions)
             .def("get_prey_type", &Forager::get_prey_type)
             .def("get_favorite_prey_type", &Forager::get_favorite_prey_type)
@@ -82,10 +77,9 @@ PYBIND11_MODULE(pyvalidfish, m) {
             .def("analyze_results", &Forager::analyze_results);
 
     py::enum_<Forager::Strategy>(forager, "Strategy")
-            .value("delta_min", Forager::Strategy::s_delta_min)
             .value("sigma_A", Forager::Strategy::s_sigma_A)
             .value("mean_column_velocity", Forager::Strategy::s_mean_column_velocity)
-            .value("saccade_time", Forager::Strategy::s_saccade_time)
+            .value("inspection_time", Forager::Strategy::s_inspection_time)
             .value("discrimination_threshold", Forager::Strategy::s_discrimination_threshold)
             .value("search_image", Forager::Strategy::s_search_image)
             .export_values();
@@ -96,11 +90,14 @@ PYBIND11_MODULE(pyvalidfish, m) {
             .value("alpha_d", Forager::Parameter::p_alpha_d)
             .value("beta", Forager::Parameter::p_beta)
             .value("A_0", Forager::Parameter::p_A_0)
-            .value("t_s_0", Forager::Parameter::p_t_s_0)
             .value("discriminability", Forager::Parameter::p_discriminability)
             .value("flicker_frequency", Forager::Parameter::p_flicker_frequency)
             .value("tau_0", Forager::Parameter::p_tau_0)
-            .value("nu", Forager::Parameter::p_nu)
+            .value("nu_0", Forager::Parameter::p_nu_0)
+            .value("delta_p", Forager::Parameter::p_delta_p)
+            .value("omega_p", Forager::Parameter::p_omega_p)
+            .value("ti_p", Forager::Parameter::p_ti_p)
+            .value("sigma_p_0", Forager::Parameter::p_sigma_p_0)
             .export_values();
 
     /* --------------------- Optimizer class and components ----------------------- */

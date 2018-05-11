@@ -23,7 +23,7 @@ set(SOURCES
     lib/fast-cpp-csv-parser/csv.h
     lib/flat_hash_map.hpp
     ForagerGetters.cpp
-    Printing.cpp DetectionSubmodel.cpp)
+    Printing.cpp DetectionSubmodel.cpp DiscriminationSubmodel.cpp)
 
 find_package(GSL REQUIRED)
 find_package(Threads REQUIRED)
