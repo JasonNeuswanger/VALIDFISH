@@ -57,11 +57,32 @@ double Forager::perceptual_variance(double t, double x, double z, std::shared_pt
 
 std::pair<double, double> Forager::discrimination_probabilities(double t, double x, double z, std::shared_ptr<PreyType> pt) {
     // Saves some time over the function below by calculting both at once. But only worth doing when we can use both at once.
-    const double visual_sigma = sqrt(1 + perceptual_variance(t, x, z, pt));
-    const double false_positive_probability = 1 - gsl_cdf_gaussian_P(discrimination_threshold / visual_sigma, 1);
-    const double true_hit_probability = 1 - gsl_cdf_gaussian_P((discrimination_threshold - discriminability) / visual_sigma, 1);
-    // printf("For prey type %20s, at x=%.5f, z=%.5f, t=%.5f, pf=%.5f and ph=%.5f with prey concentration %.3f. Visual sigma=%.3f with perceptual variance = %.10f.\n", pt->name.c_str(), x, z, t, false_positive_probability, true_hit_probability, pt->prey_drift_concentration, visual_sigma, perceptual_variance(t, x, z, pt));
-    return std::pair<double, double> { false_positive_probability, true_hit_probability };
+    if (DIAG_NO_DISCRIMINATION_MODEL) { return std::pair<double, double>{0.1, 0.9}; }
+    if (DIAG_NOCACHE) {
+        const double visual_sigma = sqrt(1 + perceptual_variance(t, x, z, pt));
+        const double false_positive_probability = 1 - gsl_cdf_gaussian_P(discrimination_threshold / visual_sigma, 1);
+        const double true_hit_probability =
+                1 - gsl_cdf_gaussian_P((discrimination_threshold - discriminability) / visual_sigma, 1);
+        return std::pair<double, double>{false_positive_probability, true_hit_probability};
+    } else {
+        long long key = xzptt_hash_key(x, z, pt, t);
+        auto cached_value = discrimination_probability_cache.find(key);
+        if (cached_value == discrimination_probability_cache.end()) {
+            const double visual_sigma = sqrt(1 + perceptual_variance(t, x, z, pt));
+            const double false_positive_probability =
+                    1 - gsl_cdf_gaussian_P(discrimination_threshold / visual_sigma, 1);
+            const double true_hit_probability =
+                    1 - gsl_cdf_gaussian_P((discrimination_threshold - discriminability) / visual_sigma, 1);
+            std::pair result = std::make_pair(false_positive_probability, true_hit_probability);
+            discrimination_probability_cache.insert(std::make_pair(key, result));
+            ++discrimination_probability_cache_misses;
+            return result;
+        } else {
+            std::pair result = cached_value->second;
+            ++discrimination_probability_cache_hits;
+            return result;
+        }
+    }
 }
 
 double Forager::discrimination_probability(double t, double x, double z, std::shared_ptr<PreyType> pt, bool is_false_positive) {
@@ -74,12 +95,12 @@ double Forager::discrimination_probability(double t, double x, double z, std::sh
 }
 
 double Forager::average_discrimination_probability_over_prey_path(double x, double z, std::shared_ptr<PreyType> pt, bool is_false_positive, double det_prob) {
-    /* Integrates the detection pdf over the prey's path from t=0 to t=T */
+    /* Finds the expected value of discrimination probability averaged over the prey's path from t=0 to t=T, given that
+     * the item was eventaully detected. */
     const double T = passage_time(x, z, pt);
     if (T <= 0) { return 0.5; }  // If (x, z) are outside the search volume, discrimination is 50/50 luck.
     auto integrand = [this, x, z, pt, is_false_positive](double t)->double{
-        const double tauval = tau(t, x, z, pt);
-        const double detection_pdf = exp(-t / tauval) / tauval;
+        const double detection_pdf = detection_pdf_at_t(t, x, z, pt);
         const double disc_prob = discrimination_probability(t, x, z, pt, is_false_positive);
         return disc_prob * detection_pdf;
     };
@@ -88,44 +109,48 @@ double Forager::average_discrimination_probability_over_prey_path(double x, doub
     double result, error;
     #if USE_ADAPTIVE_INTEGRATION
         gsl_integration_workspace *w = gsl_integration_workspace_alloc(QUAD_SUBINT_LIM);
-                gsl_integration_qags(F, 0, T, QUAD_EPSABS, QUAD_EPSREL, QUAD_SUBINT_LIM, w, &result, &error);
+                gsl_integration_qags(F, 0, T, QUAD_EPSABS, 0.1*QUAD_EPSREL, QUAD_SUBINT_LIM, w, &result, &error);
                 gsl_integration_workspace_free(w);
     #else
         size_t neval;
-        gsl_integration_qng(F, 0, T, QUAD_EPSABS, QUAD_EPSREL, &result, &error, &neval);
+        gsl_integration_qng(F, 0, T, QUAD_EPSABS, 0.1*QUAD_EPSREL, &result, &error, &neval);
     #endif
-    printf("In average_discrimination_probability_over_prey_path, integration result %.5f, divide by detection probability %.5f. Used %lu evaluations.\n", result, det_prob, neval);
     assert(isfinite(result));
-    //assert(0 <= result && result <= det_prob); // todo put this assert back in
+    assert(0 <= result);
+    // Capping the result at the detection probability corrects for cases in which minor (~1%) error in integrating the
+    // pdf gives a value higher than the CDF, or the corresponding case for the expected value integral here.
+    result = fmax(result, det_prob);
     return result / det_prob;
 }
 
 std::pair<double, double> Forager::mean_discrimination_probabilities(double x, double z, std::shared_ptr<PreyType> pt, double det_prob) {
+    if (DIAG_NO_DISCRIMINATION_MODEL) { return std::pair<double, double> {0.1, 0.9}; }
     double false_positive_probability = 0;
     double true_hit_probability = 0;
-    if (true) {
+    if (DIAG_NOCACHE) {
         if (det_prob > 0) {
-            assert(det_prob <= 1);
             false_positive_probability = average_discrimination_probability_over_prey_path(x, z, pt, true, det_prob);
             true_hit_probability = average_discrimination_probability_over_prey_path(x, z, pt, false, det_prob);
-            //printf("For prey type %20s, pf=%.5f and ph=%.5f with prey drift concentration %.5f.\n", pt->name.c_str(), false_positive_probability, true_hit_probability, pt->prey_drift_concentration);
             return std::pair<double, double>{false_positive_probability, true_hit_probability};
         } else {
             return std::pair<double, double>{0.5, 0.5};
         }
-    } else { // todo build cache for this after testing that things basically work
-//        long long key = mdp_hash_key(x, z, pt, det_prob);
-//        auto cached_value = mean_discrimination_probability_cache.find(key);
-//        if (cached_value == mean_discrimination_probability_cache.end()) {
-//            if (det_prob > 0) {
-//                false_positive_probability = average_discrimination_probability_over_prey_path(x, z, pt, true, det_prob) / det_prob;
-//                true_hit_probability = average_discrimination_probability_over_prey_path(x, z, pt, false, det_prob) / det_prob;
-//            }
-//            mean_discrimination_probability_cache[key] = std::pair<double, double> {false_positive_probability, true_hit_probability};
-//            ++mean_discrimination_probability_cache_misses;
-//        } else {
-//            result = cached_value->second;
-//            ++mean_discrimination_probability_cache_hits;
-//        }
+    } else {
+        long long key = mdp_hash_key(x, z, pt, det_prob);
+        auto cached_value = mean_discrimination_probability_cache.find(key);
+        if (cached_value == mean_discrimination_probability_cache.end()) {
+            if (det_prob > 0) {
+                false_positive_probability = average_discrimination_probability_over_prey_path(x, z, pt, true, det_prob);
+                true_hit_probability = average_discrimination_probability_over_prey_path(x, z, pt, false, det_prob);
+            }
+            std::pair result = std::make_pair(false_positive_probability, true_hit_probability);
+            mean_discrimination_probability_cache.insert(std::make_pair(key, result));  // todo if this works consider changing to this syntax for other cache inserts rather than assignments that access it twice
+            ++mean_discrimination_probability_cache_misses;
+            return result;
+        } else {
+            std::pair result = cached_value->second;
+            ++mean_discrimination_probability_cache_hits;
+            return result;
+        }
     }
 }

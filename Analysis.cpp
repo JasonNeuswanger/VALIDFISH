@@ -4,81 +4,17 @@
 
 #include "Forager.h"
 
-double Forager::depletable_detection_probability(double x, double y, double z, std::shared_ptr<PreyType> pt) {
-    /* This function gives the probability of getting to a position undetected times the detection PDF at that
-     * point. */
-    if (z > surface_z || z < bottom_z) { return 0; }
-    double prey_radius = pt->get_max_visible_distance();
-    const double xsq = gsl_pow_2(x);
-    const double ysq = gsl_pow_2(y);
-    const double zsq = gsl_pow_2(z);
-    const double rsq = gsl_pow_2(prey_radius);
-    if (xsq + ysq + zsq > rsq) { return 0; }
-    const double y0 = sqrt(rsq - xsq - zsq);
-    const double yT = fmax(-y0, cot(theta/2) * sqrt(xsq + zsq));
-    if (y < yT || y > y0) { return 0; }
-    const double v = water_velocity(z);
-    const double t_y = (y0 - y) / v; // Time at which the particle reaches position y
-    auto integrand = [this, x, z, pt](double t)->double{
-        double tauval = tau(t, x, z, pt);
-        return exp(-t / tauval) / tauval;
-    };
-    gsl_function_pp<decltype(integrand)> Fp(integrand);
-    gsl_function *F = static_cast<gsl_function*>(&Fp);
-    double result, error;
-    #if USE_ADAPTIVE_INTEGRATION
-        gsl_integration_workspace *w = gsl_integration_workspace_alloc(QUAD_SUBINT_LIM);
-        gsl_integration_qags(F, 0, t_y, QUAD_EPSABS, QUAD_EPSREL, QUAD_SUBINT_LIM, w, &result, &error);
-        gsl_integration_workspace_free(w);
-    #else
-        size_t neval;
-        gsl_integration_qng(F, 0, t_y, QUAD_EPSABS, QUAD_EPSREL, &result, &error, &neval);
-    #endif
-    const double probability_of_no_previous_detection = 1 - result;
-    const double tau_y = tau(t_y, x, z, pt);
-    const double probability_of_detection_at_y = exp(-t_y / tau_y) / tau_y; // probability density of detecting at position y
-    const double answer = probability_of_no_previous_detection * probability_of_detection_at_y;
-    return answer;
-}
-
 double Forager::relative_pursuits_by_position_single_prey_type(double x, double y, double z, std::shared_ptr<PreyType> pt) {
     /* This function gives an index of the number of pursuits per unit time made on items detected at each position.
      * However, it's based on probability densities, so it can't really translate into meaningful units unless it's
      * integrated over some volume. */
-    if (z > surface_z || z < bottom_z) { return 0; }
-    double prey_radius = pt->get_max_visible_distance();
-    const double xsq = gsl_pow_2(x);
-    const double ysq = gsl_pow_2(y);
-    const double zsq = gsl_pow_2(z);
-    const double rsq = gsl_pow_2(prey_radius);
-    if (xsq + ysq + zsq > rsq) { return 0; }
-    const double y0 = sqrt(rsq - xsq - zsq);
-    const double yT = fmax(-y0, cot(theta/2) * sqrt(xsq + zsq));
-    if (y < yT || y > y0) { return 0; }
     const double v = water_velocity(z);
-    const double t_y = (y0 - y) / v; // Time at which the particle reaches position y
-    auto integrand = [this, x, z, pt](double t)->double{
-        double tauval = tau(t, x, z, pt);
-        return exp(-t / tauval) / tauval;
-    };
-    gsl_function_pp<decltype(integrand)> Fp(integrand);
-    gsl_function *F = static_cast<gsl_function*>(&Fp);
-    double result, error;
-    #if USE_ADAPTIVE_INTEGRATION
-        gsl_integration_workspace *w = gsl_integration_workspace_alloc(QUAD_SUBINT_LIM);
-            gsl_integration_qags(F, 0, t_y, QUAD_EPSABS, QUAD_EPSREL, QUAD_SUBINT_LIM, w, &result, &error);
-            gsl_integration_workspace_free(w);
-    #else
-        size_t neval;
-        gsl_integration_qng(F, 0, t_y, QUAD_EPSABS, QUAD_EPSREL, &result, &error, &neval);
-    #endif
-    const double probability_of_no_previous_detection = 1 - result;
-    const double tau_y = tau(t_y, x, z, pt);
-    const double probability_of_detection_at_y = exp(-t_y / tau_y) / tau_y; // probability of detecting in one second (detection PDF) at position y
+    const double detection_pdf = detection_pdf_at_y(y, x, z, pt);
+    const double t_y = time_at_y(y, x, z, pt);
     auto dps = discrimination_probabilities(t_y, x, z, pt);
-    double false_positive_probability = dps.first;
-    double true_hit_probability = dps.second;
-    const double answer = probability_of_no_previous_detection * probability_of_detection_at_y * v * (pt->prey_drift_concentration * true_hit_probability + pt->debris_drift_concentration * false_positive_probability);
+    const double false_positive_probability = dps.first;
+    const double true_hit_probability = dps.second;
+    const double answer = detection_pdf * v * (pt->prey_drift_concentration * true_hit_probability + pt->debris_drift_concentration * false_positive_probability);
     return answer;
 }
 
@@ -87,6 +23,26 @@ double Forager::relative_pursuits_by_position(double x, double y, double z) {
     double total = 0;
     for (auto & pt : prey_types) {
         total += relative_pursuits_by_position_single_prey_type(x, y, z, pt);
+    }
+    return total;
+}
+
+double Forager::depleted_prey_concentration_single_prey_type(double x, double y, double z, std::shared_ptr<PreyType> pt) {
+    // Estimates the concentration of prey at each given point, taking into account the possibility of having not
+    // detected it yet, or having detected it but failed to identify it as prey. Units of items/m3.
+    // Todo make this return an intuitive number if outside the reaction volume, i.e. upstream or downstream.
+    // Todo adjust for handling time by multiplying by proportion of fish's time not spent handling. (1 / 1 + denominator of NREI)
+    const double t_y = time_at_y(y, x, z, pt);
+    const double probability_of_not_being_detected_yet = exp(-mean_value_function(t_y, x, z, pt));
+    const double true_hit_probability = discrimination_probability(t_y, x, z, pt, false);
+    return pt->prey_drift_concentration * (probability_of_not_being_detected_yet + (1 - probability_of_not_being_detected_yet) * (1 - true_hit_probability));
+}
+
+double Forager::depleted_prey_concentration_total_energy(double x, double y, double z) {
+    // Combines depleted concentrations of all prey types to get total energy content remaining.
+    double total = 0;
+    for (auto & pt : prey_types) {
+        total += pt->energy_content * depleted_prey_concentration_single_prey_type(x, y, z, pt);
     }
     return total;
 }
@@ -117,8 +73,7 @@ std::map<std::string, std::vector<std::map<std::string, double>>> Forager::spati
         types.push_back(pt);
     }
     auto main_lambda = [this, which_items](std::shared_ptr<PreyType> ipt, double min_distance, double max_distance, double min_angle, double max_angle) {  // integrates same function as above, but over the whole search volume
-        //if (ipt->prey_drift_concentration == 0 && ipt->debris_drift_concentration == 0) { return 0.0; }
-        if (ipt->prey_drift_concentration == 0) { return 0.0; } // could relax this assumption... this is a quick hack to speed up output
+        if (ipt->prey_drift_concentration == 0 && ipt->debris_drift_concentration == 0) { return 0.0; }
         double inner_theta, inner_phi;  // placeholders for the inner integrands
         double max_possible_distance = ipt->get_max_visible_distance();
         double truncated_min_distance = (min_distance > max_possible_distance) ? max_possible_distance : min_distance;
@@ -128,12 +83,12 @@ std::map<std::string, std::vector<std::map<std::string, double>>> Forager::spati
             cartesian_3D_coords coords = cartesian_from_spherical(rho, *theta, *phi);
             if (coords.z > surface_z || coords.z < bottom_z) { return 0; }
             double v = water_velocity(coords.z);
-            double prob = depletable_detection_probability(coords.x, coords.y, coords.z, ipt) * v;
+            double prob = detection_pdf_at_y(coords.y, coords.x, coords.z, ipt) * v;
             double rsq = gsl_pow_2(ipt->max_visible_distance);
             double t = (sqrt(rsq - gsl_pow_2(coords.x) - gsl_pow_2(coords.z)) - coords.y) / v;
             auto dps = discrimination_probabilities(t, coords.x, coords.z, ipt);
-            double false_positive_probability = dps.first;     // false positive probability
-            double true_hit_probability = dps.second;    // true hit probability
+            double false_positive_probability = dps.first;
+            double true_hit_probability = dps.second;
             if (which_items == "Prey") {
                 prob *= ipt->prey_drift_concentration * true_hit_probability;
             } else if (which_items == "Debris") {
@@ -157,25 +112,11 @@ std::map<std::string, std::vector<std::map<std::string, double>>> Forager::spati
     for (auto &jpt : types) {
         total += main_lambda(jpt, NAN, NAN, NAN, NAN);
     }
-//    std::vector<std::future<double>> total_futures;
-//    for (auto &pt : *types) {
-//        total_futures.push_back(std::async(std::launch::async, main_lambda, &pt, NAN, NAN, NAN, NAN));  // works fine, despite CLion highlighting error
-//    };
-//    for (auto &tf : total_futures) {
-//        total += tf.get();
-//    }
     std::vector<std::map<std::string, double>> distance_results, angle_results;
     for (auto distance_pair : distance_bins) {
         double min_distance = distance_pair.first;
         double max_distance = distance_pair.second;
         double bin_total = 0;
-//        std::vector<std::future<double>> bin_futures;
-//        for (auto &pt : *types) {
-//            bin_futures.push_back(std::async(std::launch::async, main_lambda, &pt, min_distance, max_distance, NAN, NAN));  // works fine, despite CLion highlighting error
-//        };
-//        for (auto &bf : bin_futures) {
-//            bin_total += bf.get();;
-//        }
         for (auto & jpt : types) {
             bin_total += main_lambda(jpt, min_distance, max_distance, NAN, NAN);
         }
@@ -193,13 +134,6 @@ std::map<std::string, std::vector<std::map<std::string, double>>> Forager::spati
         double min_angle = angle_pair.first;
         double max_angle = angle_pair.second;
         double bin_total = 0;
-//        std::vector<std::future<double>> bin_futures;
-//        for (auto &pt : *types) {
-//            bin_futures.push_back(std::async(std::launch::async, main_lambda, &pt, NAN, NAN, min_angle, max_angle));  // works fine, despite CLion highlighting error
-//        };
-//        for (auto &bf : bin_futures) {
-//            bin_total += bf.get();;
-//        }
         for (auto & jpt : types) {
             bin_total += main_lambda(jpt, NAN, NAN, min_angle, max_angle);
         }
@@ -252,7 +186,7 @@ double Forager::pursuit_rate(std::string which_rate, std::shared_ptr<PreyType> p
         ++numerator_integrand_evaluations;
         double sum = 0;
         const double v = water_velocity(z);
-        double pd, pf, ph, dp, dd;
+        double pd, pf, ph, dp, dd; // todo check we're missing here some stuff that's in NREI
         for (auto & ipt : types) {
             pd = detection_probability(*x, z, ipt);
             auto mdps = mean_discrimination_probabilities(*x, z, ipt, pd);
@@ -297,7 +231,7 @@ double Forager::pursuit_rate(std::string which_rate, std::shared_ptr<PreyType> p
     } else if (isnan(rate)) {
         printf("ERROR: Somehow got NaN pursuit rate for prey type null (all types) with numerator %.4f and denominator %.4f.\n", numerator, denominator);
     }
-    if (DIAG_NANCHECKS) { assert(!isnan(rate)); }
+    assert(!isnan(rate));
     return rate;
 }
 

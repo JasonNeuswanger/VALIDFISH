@@ -54,20 +54,15 @@ inline double Forager::expected_profit_for_item(double t, double x, double y, do
     return expected_energy_gain - cost;
 }
 
-double Forager::tau(double t, double x, double z, std::shared_ptr<PreyType> pt) {
+double Forager::calculate_tau(double t, double x, double z, std::shared_ptr<PreyType> pt) {
     // Calculate some prerequisite quantities.
     const double xsq = gsl_pow_2(x);
     const double zsq = gsl_pow_2(z);
     const double rsq = gsl_pow_2(pt->get_max_visible_distance());
     const double v = water_velocity(z);
-    if (xsq + zsq > rsq) {
-        printf("TAU_ERROR: Somehow called for tau at (x,z)=(%.5f,%.5f) so xsq+rsq=%.5f is > rsq=%.5f. Prey type %s. Should be filtered out before here.\n", x, z, xsq+zsq, rsq, pt->name.c_str());
-        return INFINITY;
-    }
+    assert(xsq + zsq <= rsq);
+    if (xsq + zsq > rsq) { return INFINITY; }
     const double y = sqrt(rsq - xsq - zsq) - t * v;
-    if (isnan(y)) {
-        printf("TAU_ERROR: y=nan at rsq=%.5f, xsq=%.5f, zsq=%.5f, t=%.5f, v=%.5f for prey type %s.\n", rsq, xsq, zsq, t, v, pt->name.c_str());
-    }
     const double ysq = gsl_pow_2(y);
     const double distance = sqrt(xsq + ysq + zsq);
     const double angular_length = 2 * atan2(pt->length, M_PI * distance);
@@ -94,12 +89,28 @@ double Forager::tau(double t, double x, double z, std::shared_ptr<PreyType> pt) 
     const double fish_attention_components = tau_effect_of_set_size() * tau_effect_of_spatial_attention(y, distance) * tau_effect_of_search_image(pt);
     const double object_salience_components = pt->crypticity * tau_effect_of_loom(distance, v, y, pt) * tau_effect_of_angular_area(distance, pt);
     const double combined_tau = (1/flicker_frequency) + tau_0 * fish_attention_components * object_salience_components;
+    assert(isfinite(combined_tau));
     assert(combined_tau > 0);
-    if (combined_tau <= 0 or isnan(combined_tau)) {
-        printf("TAU_ERROR: Combined_tau = %.3f. Attention part %.3f, salience %.3f. Components %.3f, %.3f, %.3f, %.3f, %.3f\n", combined_tau, fish_attention_components, object_salience_components, tau_effect_of_set_size(), tau_effect_of_spatial_attention(y, distance), tau_effect_of_search_image(pt), tau_effect_of_loom(distance, v, y, pt), tau_effect_of_angular_area(distance, pt));
-    }
     return combined_tau;
+}
 
+double Forager::tau(double t, double x, double z, std::shared_ptr<PreyType> pt) {
+    double result;
+    if (DIAG_NOCACHE or DIAG_NOCACHE_TAU) {
+        result = calculate_tau(t, x, z, pt);
+    } else {
+        long long key = xzptt_hash_key(x, z, pt, t);
+        auto cached_value = tau_cache.find(key);
+        if (cached_value == tau_cache.end()) {
+            result = calculate_tau(t, x, z, pt);
+            tau_cache[key] = result;
+            ++tau_cache_misses;
+        } else {
+            ++tau_cache_hits;
+            result = cached_value->second;
+        }
+    }
+    return result;
 }
 
 std::map<std::string, double> Forager::tau_components(double t, double x, double z, std::shared_ptr<PreyType> pt) {
@@ -177,58 +188,101 @@ void Forager::compute_set_size(bool verbose) {
     set_size = ss;
 }
 
-
-double Forager::integrate_detection_pdf(double x, double z, std::shared_ptr<PreyType> pt) {
-    /* Integrates the detection pdf over the prey's path from t=0 to t=T */
-    printf("\n\nDoing an integration of the detection PDF at (x,z)=(%.3f,%.3f) for prey type %s:\n\n", x, z, pt->name.c_str());
-    const double T = passage_time(x, z, pt);
-    printf("Passage time is %.3f with water velocity %.5f.\n", T, water_velocity(z));
-    if (T <= 0) { return 0; }  // If (x, z) are outside the search volume, detection probability is 0.
+double Forager::calculate_mean_value_function(double T, double x, double z, std::shared_ptr<PreyType> pt) {
+    // This is the quantity referred to by a capital lambda (upside-down V) in the equations for a non-homogeneous Poisson
+    // process. It is termed the "mean value function" in Sheldon's "Intro to Probability Models." It refers to the
+    // expected value of the number of detections expected in the time interval (0, T). In this application, we
+    // are only interested in the first detection, but this quantity is still used as an intermediate to calculate others.
+    // Note that T here is not the full passage time, but the elapsed passage time to the position of interest, which
+    // might or might not be the full passage time.
+    if (T <= 0) { return 0; }
     auto integrand = [this, x, z, pt](double t)->double{
         double tauval = tau(t, x, z, pt);
-        if (isfinite(tauval)) {
-            printf("At t=%.3f, tau is %.5f. Detection PDF is %.5f.\n", t, tauval, exp(-t / tauval) / tauval);
-            return exp(-t / tauval) / tauval;
-        } else {
-            printf("At t=%.3f, detection PDF is %.3f because tau is %.3f.\n", t, exp(-t / tauval) / tauval, tauval);
-            return 0.0; // this is the value given by exp(-t / tauval) / tauval when tauval is inf
-        }
+        return (isfinite(tauval)) ? 1/tauval : 0;
     };
     gsl_function_pp<decltype(integrand)> Fp(integrand);
     gsl_function *F = static_cast<gsl_function*>(&Fp);
-    // printf("Doing the integration.\n");
     double result, error;
     #if USE_ADAPTIVE_INTEGRATION
         gsl_integration_workspace *w = gsl_integration_workspace_alloc(QUAD_SUBINT_LIM);
-            gsl_integration_qags(F, 0, T, QUAD_EPSABS, QUAD_EPSREL, QUAD_SUBINT_LIM, w, &result, &error);
-            gsl_integration_workspace_free(w);
+                gsl_integration_qags(F, 0, T, QUAD_EPSABS, QUAD_EPSREL, QUAD_SUBINT_LIM, w, &result, &error);
+                gsl_integration_workspace_free(w);
     #else
         size_t neval;
         gsl_integration_qng(F, 0, T, QUAD_EPSABS, QUAD_EPSREL, &result, &error, &neval);
     #endif
     assert(isfinite(result));
-    printf("In integrate_detection_pdf, detection probability %.20f with error %.20f.\n", result, error);
+    assert(result >= 0);
+    // printf("Mean value result is %.6f while 1/tau(T) is %.6f.\n", result, 1/tau(T, x, z, pt));
+    return result;
+}
 
-//    if (!(0 <= result && result <= 1)) {  // todo figure out why some integrals here were > 1
-//        printf("BAD result = %.5f.\n",result);
-//        //abort();
-//    } else {
-//        printf("Good result = %.5f.\n",result);
+double Forager::mean_value_function(double T, double x, double z, std::shared_ptr<PreyType> pt) {
+    double result;
+    if (DIAG_NOCACHE) {
+        result = calculate_mean_value_function(T, x, z, pt);
+    } else {
+        long long key = xzptt_hash_key(x, z, pt, T);
+        auto cached_value = mean_value_function_cache.find(key);
+        if (cached_value == mean_value_function_cache.end()) {
+            result = calculate_mean_value_function(T, x, z, pt);
+            mean_value_function_cache[key] = result;
+            ++mean_value_function_cache_misses;
+        } else {
+            ++mean_value_function_cache_hits;
+            result = cached_value->second;
+        }
+    }
+    return result;
+}
+
+double Forager::calculate_detection_probability(double x, double z, std::shared_ptr<PreyType> pt) {
+    const double T = passage_time(x, z, pt);
+    const double result = 1 - exp(-mean_value_function(T, x, z, pt));
+    assert(isfinite(result));
+    assert(0 <= result && result <= 1);
+    // ALTERNATIVE METHOD: Integrate the PDF. There is absolutely no reason to do this except for testing purposes, to
+    // make sure the same result is obtained each way. Although that is the case, both results are subject to numerical
+    // error reflected here. This can be arbitrarily reduced by decreasing QUAD_EPSREL at the expense of speed and/or
+    // changing to adaptive quadrature. The result of that test suggests that we should use slightly higher precision
+    // when integrating over the PDF to get the expected value of maneuver costs and discrimination probabilities than
+    // during the other integrals.
+//    auto integrand = [this, x, z, pt](double t)->double{
+//        return detection_pdf_at_t(t, x, z, pt);
+//    };
+//    gsl_function_pp<decltype(integrand)> Fp(integrand);
+//    gsl_function *F = static_cast<gsl_function*>(&Fp);
+//    double result2, error;
+//    #if USE_ADAPTIVE_INTEGRATION
+//        gsl_integration_workspace *w = gsl_integration_workspace_alloc(QUAD_SUBINT_LIM);
+//                    gsl_integration_qags(F, 0, T, QUAD_EPSABS, 0.1*QUAD_EPSREL, QUAD_SUBINT_LIM, w, &result2, &error);
+//                    gsl_integration_workspace_free(w);
+//    #else
+//        size_t neval;
+//        gsl_integration_qng(F, 0, T, QUAD_EPSABS, 0.1*QUAD_EPSREL, &result2, &error, &neval);
+//    #endif
+//    assert(isfinite(result2));
+//    assert(result2 >= 0);
+//    if (result > 0) {
+//        printf("Detection probability as direct CDF is %.8f. By integrating PDF, it's %.8f. Returning the former.",
+//               result, result2);
+//        if (abs(result - result2) > 1e-5) {
+//            printf(" NOT A MATCH.");
+//        }
+//        printf("\n");
 //    }
-    assert(0 <= result && result <= 1); // result here, when off, tends to range from 1.01 to 1.14 or so. Not improved by integration precision or adaptive algo though.
-                                        // Problem only happens when excluding unprofitable (and/or impossible) maneuvers.
     return result;
 }
 
 double Forager::detection_probability(double x, double z, std::shared_ptr<PreyType> pt) {
     double result;
-    if (DIAG_NOCACHE) {
-        result = integrate_detection_pdf(x, z, pt);
+    if (DIAG_NOCACHE or DIAG_NOCACHE_DETECTION_PROBABILITY) {
+        result = calculate_detection_probability(x, z, pt);
     } else {
-        long long key = xzpciec_hash_key(x, z, pt, false);
+        long long key = xzptiec_hash_key(x, z, pt, false);
         auto cached_value = detection_probability_cache.find(key);
         if (cached_value == detection_probability_cache.end()) {
-            result = integrate_detection_pdf(x, z, pt);
+            result = calculate_detection_probability(x, z, pt);
             detection_probability_cache[key] = result;
             ++detection_probability_cache_misses;
         } else {
@@ -236,8 +290,34 @@ double Forager::detection_probability(double x, double z, std::shared_ptr<PreyTy
             result = cached_value->second;
         }
     }
-    if (DIAG_NANCHECKS) {
-        assert(isfinite(result));
+    return result;
+}
+
+double Forager::calculate_detection_pdf_at_t(double t, double x, double z, std::shared_ptr<PreyType> pt) {
+    if (z > surface_z || z < bottom_z) { return 0; }
+    return exp(-mean_value_function(t, x, z, pt)) / tau(t, x, z, pt);
+}
+
+double Forager::detection_pdf_at_t(double t, double x, double z, std::shared_ptr<PreyType> pt) {
+    double result;
+    if (DIAG_NOCACHE or DIAG_NOCACHE_DETECTION_PDF) {
+        result = calculate_detection_pdf_at_t(t, x, z, pt);
+    } else {
+        long long key = xzptt_hash_key(x, z, pt, t);
+        auto cached_value = detection_pdf_cache.find(key);
+        if (cached_value == detection_pdf_cache.end()) {
+            result = calculate_detection_pdf_at_t(t, x, z, pt);
+            detection_pdf_cache[key] = result;
+            ++detection_pdf_cache_misses;
+        } else {
+            ++detection_pdf_cache_hits;
+            result = cached_value->second;
+        }
     }
     return result;
+}
+
+double Forager::detection_pdf_at_y(double y, double x, double z, std::shared_ptr<PreyType> pt) {
+    const double t_y = time_at_y(y, x, z, pt);
+    return detection_pdf_at_t(x, t_y, z, pt);
 }

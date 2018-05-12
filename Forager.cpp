@@ -178,6 +178,11 @@ void Forager::process_parameter_updates() {
     if (!DIAG_NOCACHE) {
         mean_maneuver_cost_cache.clear();
         detection_probability_cache.clear();
+        mean_discrimination_probability_cache.clear();
+        discrimination_probability_cache.clear();
+        mean_value_function_cache.clear();
+        tau_cache.clear();
+        detection_pdf_cache.clear();
     }
     compute_angular_resolution();
     for (auto & pt : prey_types) {
@@ -282,7 +287,7 @@ double Forager::mean_maneuver_cost(double x, double z, std::shared_ptr<PreyType>
     if (DIAG_NOCACHE) {
         result = (det_prob > 0.) ? integrate_energy_cost_over_prey_path(x, z, pt, is_energy_cost) / det_prob : 0.;
     } else {
-        long long key = xzpciec_hash_key(x, z, pt, is_energy_cost);
+        long long key = xzptiec_hash_key(x, z, pt, is_energy_cost);
         auto cached_value = mean_maneuver_cost_cache.find(key);
         if (cached_value == mean_maneuver_cost_cache.end()) {
             result = (det_prob > 0.) ? integrate_energy_cost_over_prey_path(x, z, pt, is_energy_cost) / det_prob : 0.;
@@ -293,7 +298,7 @@ double Forager::mean_maneuver_cost(double x, double z, std::shared_ptr<PreyType>
             ++mean_maneuver_cost_cache_hits;
         }
     }
-    if (DIAG_NANCHECKS) { assert(isfinite(result)); }
+    assert(isfinite(result));
     return result;
 }
 
@@ -304,9 +309,11 @@ double Forager::RateOfEnergyIntake(bool is_net, bool is_cost) {
         ++numerator_integrand_evaluations;
         double sum = 0;
         const double v = water_velocity(z);
+        bool prey_is_resolvable;
         double pd, pf, ph, ch, E, dp, dd;
         for (auto & pt : prey_types) {
-            if (pt->prey_drift_concentration > 0 || pt->debris_drift_concentration > 0) {
+            prey_is_resolvable = (gsl_pow_2(*x) + gsl_pow_2(z) <= gsl_pow_2(pt->get_max_visible_distance()));
+            if (prey_is_resolvable && (pt->prey_drift_concentration > 0 || pt->debris_drift_concentration > 0)) {
                 pd = detection_probability(*x, z, pt);
                 auto mdps = mean_discrimination_probabilities(*x, z, pt, pd);
                 pf = mdps.first;     // false positive probability
@@ -321,16 +328,18 @@ double Forager::RateOfEnergyIntake(bool is_net, bool is_cost) {
         return sum;
     };
     gsl_function_pp_3d<decltype(numerator_integrand)> Fn(numerator_integrand, &y, &x);
-    gsl_function *Fnumerator = static_cast<gsl_function*>(&Fn);
-    double numerator = integrate_over_xz_plane(Fnumerator, false);
+    auto Fnumerator = static_cast<gsl_function*>(&Fn);
+    double net_energy_from_prey_maneuvers = integrate_over_xz_plane(Fnumerator, false);
 
     auto denominator_integrand = [this](double z, double *y, double *x)->double{
         ++denominator_integrand_evaluations;
         double sum = 0;
         const double v = water_velocity(z);
+        bool prey_is_resolvable;
         double pd, pf, ph, h, dp, dd;
         for (auto & pt : prey_types) {
-            if (pt->prey_drift_concentration > 0 || pt->debris_drift_concentration > 0) {
+            prey_is_resolvable = (gsl_pow_2(*x) + gsl_pow_2(z) <= gsl_pow_2(pt->get_max_visible_distance()));
+            if (prey_is_resolvable && (pt->prey_drift_concentration > 0 || pt->debris_drift_concentration > 0)) {
                 pd = detection_probability(*x, z, pt);
                 auto mdps = mean_discrimination_probabilities(*x, z, pt, pd);
                 pf = mdps.first;     // false positive probability
@@ -345,12 +354,11 @@ double Forager::RateOfEnergyIntake(bool is_net, bool is_cost) {
         return sum;
     };
     gsl_function_pp_3d<decltype(denominator_integrand)> Fd(denominator_integrand, &y, &x);
-    gsl_function *Fdenominator = static_cast<gsl_function*>(&Fd);
-    double denominator = integrate_over_xz_plane(Fdenominator, false);
-
-    double swimming_cost = (is_net) ? focal_swimming_cost : 0;
-    double nrei = (numerator - swimming_cost) / (1 + denominator);
-    if (DIAG_NANCHECKS) { assert(!isnan(nrei)); }
+    auto Fdenominator = static_cast<gsl_function*>(&Fd);
+    double total_handling_time = integrate_over_xz_plane(Fdenominator, false);
+    double adjusted_focal_swimming_cost = (is_net) ? focal_swimming_cost : 0;
+    double nrei = (net_energy_from_prey_maneuvers - adjusted_focal_swimming_cost) / (1 + total_handling_time);
+    assert(!isnan(nrei));
     return nrei;
 }
 

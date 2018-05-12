@@ -34,11 +34,22 @@ int main() {
                             1.0,    // double sigma_p_0
                             &maneuver_interpolation_path);
     forager->build_sample_prey_types();
+    ExecutionTimer<std::chrono::milliseconds> opt_timer("Single NREI time");
     printf("Forager NREI is %.6f.\n", forager->NREI());
+    opt_timer.stop();
 
-    // current test value: Forager NREI is 0.025479.
+    // Stop Elapsed: 5336
 
-    auto test_pt = forager->get_prey_type("2 mm class");
+    forager->print_cache_sizes();
+
+    // NREI fairly recently: 0.026620
+
+    // Result with NO caching whatsoever.
+    //    Forager NREI is 0.027032.
+    //    Stop Elapsed: 53769 (Single NREI time)
+
+
+    // auto test_pt = forager->get_prey_type("2 mm class");
 
     //forager->spatial_detection_proportions(test_pt, "All", true);
 

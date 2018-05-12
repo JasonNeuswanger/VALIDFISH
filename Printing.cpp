@@ -6,10 +6,15 @@
 
 
 void Forager::print_cache_sizes() {
-    printf("Mean maneuver cache hits %ld misses %ld. Detection probability hits %ld misses %ld.\n",
-           mean_maneuver_cost_cache_hits, mean_maneuver_cost_cache_misses,
-           detection_probability_cache_hits, detection_probability_cache_misses);
-    printf("There were %ld numerator evaluations and %ld denominator evaluations.\n", numerator_integrand_evaluations, denominator_integrand_evaluations);
+    printf("Memoization cache activity:\n");
+    printf("                     Mean maneuver cache hits %10ld      misses %10ld.\n", mean_maneuver_cost_cache_hits, mean_maneuver_cost_cache_misses);
+    printf("             Detection probability cache hits %10ld      misses %10ld.\n", detection_probability_cache_hits, detection_probability_cache_misses);
+    printf("               Mean value function cache hits %10ld      misses %10ld.\n", mean_value_function_cache_hits, mean_value_function_cache_misses);
+    printf("                               Tau cache hits %10ld      misses %10ld.\n", tau_cache_hits, tau_cache_misses);
+    printf("                     Detection PDF cache hits %10ld      misses %10ld.\n", detection_pdf_cache_hits, detection_pdf_cache_misses);
+    printf("   Mean discrimination probability cache hits %10ld      misses %10ld.\n", mean_discrimination_probability_cache_hits, mean_discrimination_probability_cache_misses);
+    printf("        Discrimination probability cache hits %10ld      misses %10ld.\n", discrimination_probability_cache_hits, discrimination_probability_cache_misses);
+    printf("There were %ld numerator evaluations and %ld denominator evaluations.\n",  numerator_integrand_evaluations, denominator_integrand_evaluations);
 }
 
 void Forager::print_strategy() {
@@ -45,11 +50,11 @@ void Forager::print_parameters() {
     }
 }
 
-void Forager::print_discrimination_probabilities() {
-    for (auto & pt : prey_types) {
-        printf("For category %20.20s, p(false_positive)=blank and p(true_hit)=blank. Perceptual sigma=blank (NOT IMPLEMENTED.)\n", pt->name.c_str()); // todo implement discrimination prob printing
-    }
-}
+//void Forager::print_discrimination_probabilities() {
+//    for (auto & pt : prey_types) {
+//        printf("For category %20.20s, p(false_positive)=blank and p(true_hit)=blank. Perceptual sigma=blank (NOT IMPLEMENTED.)\n", pt->name.c_str()); // todo implement discrimination prob printing
+//    }
+//}
 
 void Forager::print_analytics(){
     analyze_results();

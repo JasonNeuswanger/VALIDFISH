@@ -10,7 +10,27 @@ double cot(double x) {
     return c / s;
 }
 
-long long xzpciec_hash_key(double x, double z, std::shared_ptr<PreyType> pt, bool is_energy_cost) {
+long long xzptt_hash_key(double x, double z, std::shared_ptr<PreyType> pt, double T) {
+    long long intx = (long) round(x / MEMOIZATION_PRECISION);
+    long long intz = (long) round(z / MEMOIZATION_PRECISION);
+    long long ptid = pt->uniqueid;
+    const double elapsed_time_memoization_precision = 0.1;
+    long long intT = (long) round(T / elapsed_time_memoization_precision);
+    long long hash_key_value = (intx << 48) + (intz << 32) + (ptid << 16) + intT;
+    return hash_key_value;
+}
+
+long long mdp_hash_key(double x, double z, std::shared_ptr<PreyType> pt, double det_prob) {
+    long long intx = (long) round(x / MEMOIZATION_PRECISION);
+    long long intz = (long) round(z / MEMOIZATION_PRECISION);
+    long long ptid = pt->uniqueid;
+    const double detection_probability_memoization_precision = 0.01;
+    long long intdp = (long) round(det_prob / detection_probability_memoization_precision);
+    long long hash_key_value = (intx << 48) + (intz << 32) + (ptid << 16) + intdp;
+    return hash_key_value;
+}
+
+long long xzptiec_hash_key(double x, double z, std::shared_ptr<PreyType> pt, bool is_energy_cost) {
     /* This function works by getting 16-bit binary integer representations of each input parameter and
      * concatenating them into a single 64-bit (long long) binary representation of a new integer for the key. */
     long long intx = (long) round(x / MEMOIZATION_PRECISION);

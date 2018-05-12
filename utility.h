@@ -17,7 +17,11 @@
 
 double cot(double x);
 
-long long xzpciec_hash_key(double x, double z, std::shared_ptr<PreyType> pt, bool is_energy_cost);
+long long xzptt_hash_key(double x, double z, std::shared_ptr<PreyType> pt, double T);
+
+long long mdp_hash_key(double x, double z, std::shared_ptr<PreyType> pt, double det_prob);
+
+long long xzptiec_hash_key(double x, double z, std::shared_ptr<PreyType> pt, bool is_energy_cost);
 
 void print_gsl_errors(const char * reason, const char * file, int line, int gsl_errno);
 void ignore_gsl_errors(const char * reason, const char * file, int line, int gsl_errno);

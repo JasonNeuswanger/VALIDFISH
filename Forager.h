@@ -31,11 +31,16 @@
 #define USE_ADAPTIVE_INTEGRATION false  // Set to false for the fastest algorithm and general use
 #define QUAD_SUBINT_LIM 100             // only relevant when using adaptive integration
 #define QUAD_EPSABS 0                   // always set to 0 to use relative instead
-#define QUAD_EPSREL 1e-0                 // set precision, from 1e0 to 1e-3 or so (fast to slow) -- 1e0 works fine
-#define MEMOIZATION_PRECISION 1e-2      // spatial precision of the memoized caches, should be 0.01*QUAD_EPSREL or better
+#define QUAD_EPSREL 1e0                 // set precision, from 1e0 to 1e-3 or so (fast to slow) -- 1e0 works fine
+#define MEMOIZATION_PRECISION 1e-2      // spatial precision of the memoized caches, should be 0.01*QUAD_EPSREL or better todo make this runtime and dependent on foraging radius
 #define GSL_ERROR_POLICY 0              // 0 to ignore GSL errors. 1 to print them but continue. 2 to abort (for debugging mode).
+
 #define DIAG_NOCACHE false              // Disable various internal caches (works MUCH more slowly if set to true)
-#define DIAG_NANCHECKS false            // If true, checks to make sure values aren't NaN when they shouldn't be. For debugging.
+#define DIAG_NOCACHE_TAU true
+#define DIAG_NOCACHE_DETECTION_PROBABILITY false
+#define DIAG_NOCACHE_DETECTION_PDF true
+
+#define DIAG_NO_DISCRIMINATION_MODEL false
 
 class Forager : public Swimmer {
 
@@ -80,13 +85,16 @@ private:
     double RateOfEnergyIntake(bool is_net, bool is_cost); // Pass is_net = true for NREI, false for GREI
     void set_parameter_bounds();            // Ditto for parameter optimization bounds
     void set_strategy_bounds();
-    void print_cache_sizes();               // Only used for diagnostics
 
     // DetectionSubmodel.cpp
 
     void compute_set_size(bool verbose);    // Forager.cpp
     double integrate_detection_pdf(double x, double z, std::shared_ptr<PreyType> pt);
     inline double expected_profit_for_item(double t, double x, double y, double z, double v, std::shared_ptr<PreyType> pt);
+    // Private internal methods here calculate the quantities below, whereas the public methods check the cache and call these if needed.
+    double calculate_mean_value_function(double T, double x, double z, std::shared_ptr<PreyType> pt);
+    double calculate_detection_probability(double x, double z, std::shared_ptr<PreyType> pt);
+
 
     // DiscriminationSubmodel.cpp
 
@@ -104,6 +112,7 @@ private:
 
     double integrate_over_xz_plane(gsl_function *func, bool integrand_is_1d);
     double integrate_over_volume(gsl_function *func, double min_rho, double max_rho, double min_theta, double max_theta);
+    double time_at_y(double y, double x, double z, std::shared_ptr<PreyType> pt);
     double* random_xz();
 
     // EnvironmentInhabitant.cpp
@@ -129,10 +138,25 @@ private:
     };
     ska::flat_hash_map<long long, double, hash_function<long long>> mean_maneuver_cost_cache;
     ska::flat_hash_map<long long, double, hash_function<long long>> detection_probability_cache;
+    ska::flat_hash_map<long long, double, hash_function<long long>> mean_value_function_cache;
+    ska::flat_hash_map<long long, double, hash_function<long long>> tau_cache;
+    ska::flat_hash_map<long long, double, hash_function<long long>> detection_pdf_cache;
+    ska::flat_hash_map<long long, std::pair<double, double>, hash_function<long long>> mean_discrimination_probability_cache;
+    ska::flat_hash_map<long long, std::pair<double, double>, hash_function<long long>> discrimination_probability_cache;
     size_t mean_maneuver_cost_cache_hits = 0;
     size_t mean_maneuver_cost_cache_misses = 0;
     size_t detection_probability_cache_hits = 0;
     size_t detection_probability_cache_misses = 0;
+    size_t mean_value_function_cache_hits = 0;
+    size_t mean_value_function_cache_misses = 0;
+    size_t mean_discrimination_probability_cache_hits = 0;
+    size_t mean_discrimination_probability_cache_misses = 0;
+    size_t discrimination_probability_cache_hits = 0;
+    size_t discrimination_probability_cache_misses = 0;
+    size_t tau_cache_hits = 0;
+    size_t tau_cache_misses = 0;
+    size_t detection_pdf_cache_hits = 0;
+    size_t detection_pdf_cache_misses = 0;
 
     // Analysis/saving of results
 
@@ -217,7 +241,12 @@ public:
     inline double tau_effect_of_search_image(std::shared_ptr<PreyType> pt);
 
     double tau(double t, double x, double z, std::shared_ptr<PreyType> pt);
+    double calculate_tau(double t, double x, double z, std::shared_ptr<PreyType> pt);
     double detection_probability(double x, double z, std::shared_ptr<PreyType> pt);
+    double mean_value_function(double T, double x, double z, std::shared_ptr<PreyType> pt);
+    double calculate_detection_pdf_at_t(double t, double x, double z, std::shared_ptr<PreyType> pt);
+    double detection_pdf_at_t(double t, double x, double z, std::shared_ptr<PreyType> pt);
+    double detection_pdf_at_y(double y, double x, double z, std::shared_ptr<PreyType> pt);
 
     std::map<std::string, double> tau_components(double t, double x, double z, std::shared_ptr<PreyType> pt); // for diagnostics/plotting
 
@@ -226,8 +255,8 @@ public:
     void print_status();
     void print_strategy();
     void print_parameters();
-    void print_discrimination_probabilities();
     void print_analytics();
+    void print_cache_sizes();
 
     // ForagerGetters.cpp
 
@@ -273,9 +302,10 @@ public:
 
     void analyze_results();
     std::shared_ptr<PreyType> get_favorite_prey_type();
-    double depletable_detection_probability(double x, double y, double z, std::shared_ptr<PreyType> pt);
     double relative_pursuits_by_position_single_prey_type(double x, double y, double z, std::shared_ptr<PreyType> pt);
     double relative_pursuits_by_position(double x, double y, double z); // sums the above over all prey categories
+    double depleted_prey_concentration_single_prey_type(double x, double y, double z, std::shared_ptr<PreyType> pt);   // items/m3
+    double depleted_prey_concentration_total_energy(double x, double y, double z);                                     // J/m3, summing over prey types
     std::map<std::string, std::vector<std::map<std::string, double>>> spatial_detection_proportions(std::shared_ptr<PreyType> pt, std::string which_items, bool verbose);
 
 };
