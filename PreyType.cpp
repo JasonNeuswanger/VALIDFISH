@@ -37,9 +37,9 @@ PreyType::PreyType(PreyType *otherPreyType) {
     energy_content = otherPreyType->energy_content;
 }
 
-bool PreyType::operator< (const PreyType& pc) const
+bool PreyType::operator< (const PreyType& pt) const
 {
-    return (uniqueid < pc.uniqueid);
+    return (uniqueid < pt.uniqueid);
 }
 
 std::string PreyType::get_name() {
@@ -70,6 +70,9 @@ double PreyType::get_max_visible_distance() {
     return max_visible_distance;
 }
 
-void PreyType::compute_details(double fork_length_cm) {
+void PreyType::compute_details(double fork_length_cm, double theta) {
+    // Computes details of the prey type that depend on passed attributes of the fish.
     max_visible_distance = 120. * length * (1. - exp(-0.2 * fork_length_cm));  // Hughes & Dill 1990, but with units converted so prey length and the returned answer are both in m
+    rsq = gsl_pow_2(max_visible_distance); // Shorthand to cut a few computations elsewhere
+    rhosq = (theta < M_PI) ? gsl_pow_2(max_visible_distance * sin(theta / 2)) : rsq; // rho = max prey_radius in lateral direction
 }

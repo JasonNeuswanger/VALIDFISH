@@ -7,13 +7,14 @@
 
 void Forager::print_cache_sizes() {
     printf("Memoization cache activity:\n");
-    printf("                     Mean maneuver cache hits %10ld      misses %10ld.\n", mean_maneuver_cost_cache_hits, mean_maneuver_cost_cache_misses);
-    printf("             Detection probability cache hits %10ld      misses %10ld.\n", detection_probability_cache_hits, detection_probability_cache_misses);
-    printf("               Mean value function cache hits %10ld      misses %10ld.\n", mean_value_function_cache_hits, mean_value_function_cache_misses);
-    printf("                               Tau cache hits %10ld      misses %10ld.\n", tau_cache_hits, tau_cache_misses);
-    printf("                     Detection PDF cache hits %10ld      misses %10ld.\n", detection_pdf_cache_hits, detection_pdf_cache_misses);
-    printf("   Mean discrimination probability cache hits %10ld      misses %10ld.\n", mean_discrimination_probability_cache_hits, mean_discrimination_probability_cache_misses);
-    printf("        Discrimination probability cache hits %10ld      misses %10ld.\n", discrimination_probability_cache_hits, discrimination_probability_cache_misses);
+    printf("                  Expected maneuver cache hits %10ld      misses %10ld.\n", expected_maneuver_cost_cache_hits, expected_maneuver_cost_cache_misses);
+    printf("              Detection probability cache hits %10ld      misses %10ld.\n", detection_probability_cache_hits, detection_probability_cache_misses);
+    printf("                Mean value function cache hits %10ld      misses %10ld.\n", mean_value_function_cache_hits, mean_value_function_cache_misses);
+    printf("                                Tau cache hits %10ld      misses %10ld.\n", tau_cache_hits, tau_cache_misses);
+    printf("                      Detection PDF cache hits %10ld      misses %10ld.\n", detection_pdf_cache_hits, detection_pdf_cache_misses);
+    printf("Expected discrimination probability cache hits %10ld      misses %10ld.\n", expected_discrimination_probability_cache_hits, expected_discrimination_probability_cache_misses);
+    printf("         Discrimination probability cache hits %10ld      misses %10ld.\n", discrimination_probability_cache_hits, discrimination_probability_cache_misses);
+    printf("            Bounds of profitability cache hits %10ld      misses %10ld.\n", bounds_of_profitability_cache_hits, bounds_of_profitability_cache_misses);
     printf("There were %ld numerator evaluations and %ld denominator evaluations.\n",  numerator_integrand_evaluations, denominator_integrand_evaluations);
 }
 
@@ -64,6 +65,19 @@ void Forager::print_analytics(){
     }
 }
 
+void Forager::time_NREIs(size_t iters, size_t nreis_per_iter) {
+    double result;
+    for (int i=0; i < iters; i++) {
+        ExecutionTimer<std::chrono::milliseconds> nrei_timer("ms");
+        for (int j=0; j < nreis_per_iter; j++) {
+            process_parameter_updates();
+            result = NREI();
+        }
+        printf("Computed %lu NREIs. Latest value %.5f. ", nreis_per_iter, result);
+        nrei_timer.stop();
+    }
+}
+
 void Forager::print_status() {
     double cs_area = cross_sectional_area();
     double max_volume = volume_within_radius(max_radius);
@@ -88,8 +102,8 @@ void Forager::print_status() {
 //    double pursuit_duration = maneuver_cost(test_x, test_y, test_z, test_v, false);
 //    printf("Energy cost at (x=%.2f, y=%.2f, z=%.2f) interpolated to be %.8f J.\n", test_x, test_y, test_z, energy_cost);
 //    printf("Pursuit duration at (x=%.2f, y=%.2f, z=%.2f) interpolated to be %.8f s.\n", test_x, test_y, test_z, pursuit_duration);
-//    double mmec = mean_maneuver_cost(test_x, test_z, &pc1, true, detprob);
-//    double mmpd = mean_maneuver_cost(test_x, test_z, &pc1, false, detprob);
+//    double mmec = expected_maneuver_cost(test_x, test_z, &pc1, true, detprob);
+//    double mmpd = expected_maneuver_cost(test_x, test_z, &pc1, false, detprob);
 //    printf("Mean maneuver energy cost for type %s at (x=%.2f, z=%.2f) is %.8f J.\n", pc1.name.c_str(), test_x, test_z, mmec);
 //    printf("Mean maneuver pursuit duration for type %s at (x=%.2f, z=%.2f) is %.8f J.\n", pc1.name.c_str(), test_x, test_z, mmpd);
     double nrei = NREI();
@@ -100,7 +114,7 @@ void Forager::print_status() {
     ExecutionTimer<std::chrono::milliseconds> timer1("10 NREI calculations");
     for (int i = 0; i < 10; ++i) {
         //printf("i=%d\n", i);
-        mean_maneuver_cost_cache.clear();   // the clears don't take up much time at all within the loop
+        expected_maneuver_cost_cache.clear();   // the clears don't take up much time at all within the loop
         detection_probability_cache.clear();
         nrei = NREI();
     }
@@ -124,7 +138,7 @@ void Forager::print_status() {
     for (int i = 0; i < 1000000; i++) {
         xz = random_xz(); x = xz[0]; z = xz[1];
         //pd = detection_probability(xz[0], xz[1], &pc1);
-        //mmc = mean_maneuver_cost(xz[0], xz[1], &pc1, true, pd);
+        //mmc = expected_maneuver_cost(xz[0], xz[1], &pc1, true, pd);
         v = water_velocity(z);
     }
     timer2.stop();

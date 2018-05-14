@@ -23,7 +23,7 @@ set(SOURCES
     lib/fast-cpp-csv-parser/csv.h
     lib/flat_hash_map.hpp
     ForagerGetters.cpp
-    Printing.cpp DetectionSubmodel.cpp DiscriminationSubmodel.cpp)
+    Printing.cpp DetectionSubmodel.cpp DiscriminationSubmodel.cpp Energetics.cpp)
 
 find_package(GSL REQUIRED)
 find_package(Threads REQUIRED)
@@ -63,6 +63,11 @@ target_compile_options(pyvalidfish PRIVATE -O3) # -march=native -flto)
 # using ./configure --prefix=/usr/local/gcc-7.3
 
 # Original valgrind options were --leak-check=full --leak-resolution=med  --track-origins=yes
+# For me that's "/Users/Jason/Dropbox/Drift Model Project/Calculations/VALIDFISH/VALIDFISH/cmake-build-debug/validfish"
+# To profile with callgrind, go into a terminal window to the folder where this program is output
+# and use: valgrind --tool callgrind ./validfish
+# Pipe output from callgrind_annotate to a text file to see sensible results:
+# callgrind_annotate callgrind.out.6943 > callgrind.out.6943.txt
 
 # Configuring Eigen following thse instructions
 # https://eigen.tuxfamily.org/dox/TopicCMakeGuide.html

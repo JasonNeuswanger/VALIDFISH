@@ -90,10 +90,16 @@ double Swimmer::maneuver_cost(double x, double y, double z, double v, bool is_en
     const double ymr = 100 * sqrt(gsl_pow_2(x) + gsl_pow_2(z));   // model coordinates and units from m to cm
     double interp_velocity = round((v * 100) - (((int) round(v * 100) - 1) % 5)); // Interpolate at velocity matching 1, 6, 11, 16, 21, 26, 31, 36 .... cm/s
     if (interps.count(interp_velocity) == 0) {  // If interpolations for this velocity aren't loaded yet, load them
-//        interps.insert(std::pair<double, ManeuverInterpolation*>(interp_velocity, new ManeuverInterpolation(interp_velocity, temperature_C, fork_length_cm, &maneuver_interpolation_csv_base_path)));
         interps.insert(std::pair<double, std::shared_ptr<ManeuverInterpolation>>(interp_velocity, new ManeuverInterpolation(interp_velocity, temperature_C, fork_length_cm, &maneuver_interpolation_csv_base_path)));
     }
     double result = interps.at(interp_velocity)->interpolate(xmr, ymr, is_energy_cost);
     assert(isfinite(result));
-    return result;
+//    if (result <= 0) {
+//        std::string cost_type_label = (is_energy_cost) ? "energy" : "pursuit duration";
+//        std::string file_path = interps.at(interp_velocity)->source_filename(is_energy_cost);
+//        printf("Interpolated a nonpositive maneuver cost of %.6f J at (x, y, z) = (%.4f, %.4f, %.4f) with v=%.6f and cost type %s.\n", result, x, y, z, v, cost_type_label.c_str());
+//        printf("In maneuver model coordinates, (xmr, ymr) = (%.4f, %.4f) and interpolation file is %s.\n", xmr, ymr, file_path.c_str());
+//    }
+//    assert(result > 0);
+    return fmax(result, 1e-6);  // todo Figure out why I was sometimes getting negative costs interpolated from very small positive costs and fix it. Plot stuff in Python.
 }

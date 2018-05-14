@@ -44,6 +44,7 @@ public:
 
     double interpolate(double xmr, double ymr, bool is_energy_cost);
 
+    std::string source_filename(bool is_energy_cost);  // So this can be printed easily to check questionable results against source data.
 };
 
 #endif //DRIFTMODELC_MANEUVERINTERPOLATION_H

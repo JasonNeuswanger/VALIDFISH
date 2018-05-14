@@ -8,10 +8,11 @@ double Forager::relative_pursuits_by_position_single_prey_type(double x, double 
     /* This function gives an index of the number of pursuits per unit time made on items detected at each position.
      * However, it's based on probability densities, so it can't really translate into meaningful units unless it's
      * integrated over some volume. */
+    if (!location_is_profitable(x, y, z, *pt)) { return 0; }
     const double v = water_velocity(z);
-    const double detection_pdf = detection_pdf_at_y(y, x, z, pt);
-    const double t_y = time_at_y(y, x, z, pt);
-    auto dps = discrimination_probabilities(t_y, x, z, pt);
+    const double detection_pdf = detection_pdf_at_y(y, x, z, *pt);
+    const double t_y = time_at_y(y, x, z, *pt);
+    auto dps = discrimination_probabilities(t_y, x, z, *pt);
     const double false_positive_probability = dps.first;
     const double true_hit_probability = dps.second;
     const double answer = detection_pdf * v * (pt->prey_drift_concentration * true_hit_probability + pt->debris_drift_concentration * false_positive_probability);
@@ -32,9 +33,9 @@ double Forager::depleted_prey_concentration_single_prey_type(double x, double y,
     // detected it yet, or having detected it but failed to identify it as prey. Units of items/m3.
     // Todo make this return an intuitive number if outside the reaction volume, i.e. upstream or downstream.
     // Todo adjust for handling time by multiplying by proportion of fish's time not spent handling. (1 / 1 + denominator of NREI)
-    const double t_y = time_at_y(y, x, z, pt);
-    const double probability_of_not_being_detected_yet = exp(-mean_value_function(t_y, x, z, pt));
-    const double true_hit_probability = discrimination_probability(t_y, x, z, pt, false);
+    const double t_y = time_at_y(y, x, z, *pt);
+    const double probability_of_not_being_detected_yet = exp(-mean_value_function(t_y, x, z, *pt));
+    const double true_hit_probability = discrimination_probabilities(t_y, x, z, *pt).second;
     return pt->prey_drift_concentration * (probability_of_not_being_detected_yet + (1 - probability_of_not_being_detected_yet) * (1 - true_hit_probability));
 }
 
@@ -82,11 +83,11 @@ std::map<std::string, std::vector<std::map<std::string, double>>> Forager::spati
         auto integrand = [this, ipt, which_items](double rho, double *theta, double *phi)->double{
             cartesian_3D_coords coords = cartesian_from_spherical(rho, *theta, *phi);
             if (coords.z > surface_z || coords.z < bottom_z) { return 0; }
+            if (!location_is_profitable(coords.x, coords.y, coords.z, *ipt)) { return 0; }
             double v = water_velocity(coords.z);
-            double prob = detection_pdf_at_y(coords.y, coords.x, coords.z, ipt) * v;
-            double rsq = gsl_pow_2(ipt->max_visible_distance);
-            double t = (sqrt(rsq - gsl_pow_2(coords.x) - gsl_pow_2(coords.z)) - coords.y) / v;
-            auto dps = discrimination_probabilities(t, coords.x, coords.z, ipt);
+            double prob = detection_pdf_at_y(coords.y, coords.x, coords.z, *ipt) * v;
+            double t = (sqrt(ipt->rsq - gsl_pow_2(coords.x) - gsl_pow_2(coords.z)) - coords.y) / v;
+            auto dps = discrimination_probabilities(t, coords.x, coords.z, *ipt);
             double false_positive_probability = dps.first;
             double true_hit_probability = dps.second;
             if (which_items == "Prey") {
@@ -183,21 +184,24 @@ double Forager::pursuit_rate(std::string which_rate, std::shared_ptr<PreyType> p
         types.push_back(pt);
     }
     auto numerator_integrand = [this, types, which_rate](double z, double *y, double *x) -> double {
-        ++numerator_integrand_evaluations;
         double sum = 0;
         const double v = water_velocity(z);
+        bool prey_is_resolvable;
         double pd, pf, ph, dp, dd; // todo check we're missing here some stuff that's in NREI
         for (auto & ipt : types) {
-            pd = detection_probability(*x, z, ipt);
-            auto mdps = mean_discrimination_probabilities(*x, z, ipt, pd);
-            pf = mdps.first;     // false positive probability
-            ph = mdps.second;    // true hit probability
-            dp = ipt->prey_drift_concentration;
-            dd = ipt->debris_drift_concentration;
-            if (which_rate == "prey") {
-                sum += (pd * v * (ph * dp));
-            } else if (which_rate == "debris") {
-                sum += (pd * v * (pf * dd));
+            prey_is_resolvable = (gsl_pow_2(*x) + gsl_pow_2(z) <= ipt->rsq);
+            if (prey_is_resolvable && (ipt->prey_drift_concentration > 0 || ipt->debris_drift_concentration > 0)) {
+                pd = detection_probability(*x, z, *ipt);
+                auto mdps = expected_discrimination_probabilities(*x, z, *ipt, pd);
+                pf = mdps.first;     // false positive probability
+                ph = mdps.second;    // true hit probability
+                dp = ipt->prey_drift_concentration;
+                dd = ipt->debris_drift_concentration;
+                if (which_rate == "prey") {
+                    sum += (pd * v * (ph * dp));
+                } else if (which_rate == "debris") {
+                    sum += (pd * v * (pf * dd));
+                }
             }
         }
         return sum;
@@ -206,19 +210,22 @@ double Forager::pursuit_rate(std::string which_rate, std::shared_ptr<PreyType> p
     gsl_function *Fnumerator = static_cast<gsl_function *>(&Fn);
     double numerator = integrate_over_xz_plane(Fnumerator, false);
     auto denominator_integrand = [this](double z, double *y, double *x) -> double {
-        ++denominator_integrand_evaluations;
         double sum = 0;
         const double v = water_velocity(z);
+        bool prey_is_resolvable;
         double pd, pf, ph, h, dp, dd;
         for (auto &ipt : prey_types) {
-            pd = detection_probability(*x, z, ipt);
-            auto mdps = mean_discrimination_probabilities(*x, z, ipt, pd);
-            pf = mdps.first;     // false positive probability
-            ph = mdps.second;    // true hit probability
-            h = mean_maneuver_cost(*x, z, ipt, false, pd);
-            dp = ipt->prey_drift_concentration;
-            dd = ipt->debris_drift_concentration;
-            sum += pd * v * h * (ph * dp + pf * dd);
+            prey_is_resolvable = (gsl_pow_2(*x) + gsl_pow_2(z) <= ipt->rsq);
+            if (prey_is_resolvable && (ipt->prey_drift_concentration > 0 || ipt->debris_drift_concentration > 0)) {
+                pd = detection_probability(*x, z, *ipt);
+                auto mdps = expected_discrimination_probabilities(*x, z, *ipt, pd);
+                pf = mdps.first;     // false positive probability
+                ph = mdps.second;    // true hit probability
+                h = expected_maneuver_cost(*x, z, *ipt, false, pd);
+                dp = ipt->prey_drift_concentration;
+                dd = ipt->debris_drift_concentration;
+                sum += pd * v * h * (ph * dp + pf * dd);
+            }
         }
         return sum;
     };

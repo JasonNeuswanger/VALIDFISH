@@ -74,6 +74,7 @@ PYBIND11_MODULE(pyvalidfish, m) {
             .def("print_strategy", &Forager::print_strategy)
             .def("print_parameters", &Forager::print_parameters)
             .def("print_status", &Forager::print_status)
+            .def("time_NREIs", &Forager::time_NREIs)
             .def("print_analytics", &Forager::print_analytics)
             .def("analyze_results", &Forager::analyze_results);
 

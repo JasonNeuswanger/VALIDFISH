@@ -176,18 +176,19 @@ void Forager::process_parameter_updates() {
     /* Carefully watch the ordering here, or else I could update some things with old values of other things. */
     Swimmer::process_parameter_updates(true);
     if (!DIAG_NOCACHE) {
-        mean_maneuver_cost_cache.clear();
+        expected_maneuver_cost_cache.clear();
         detection_probability_cache.clear();
-        mean_discrimination_probability_cache.clear();
+        expected_discrimination_probability_cache.clear();
         discrimination_probability_cache.clear();
         mean_value_function_cache.clear();
         tau_cache.clear();
         detection_pdf_cache.clear();
+        bounds_of_profitability_cache.clear();
     }
     compute_angular_resolution();
     for (auto & pt : prey_types) {
-        pt->compute_details(fork_length_cm);
-        double prey_type_radius = pt->get_max_visible_distance();
+        pt->compute_details(fork_length_cm, theta);
+        double prey_type_radius = pt->max_visible_distance;
         if (prey_type_radius > max_radius) {
             max_radius = prey_type_radius;
         }
@@ -277,31 +278,6 @@ void Forager::compute_angular_resolution() {
     angular_resolution = 2. * atan(1. / (120. * (1. - exp(-0.2 * fork_length_cm)) * M_PI));
 }
 
-double Forager::mean_maneuver_cost(double x, double z, std::shared_ptr<PreyType> pt, bool is_energy_cost, double det_prob) {
-    /* Right now this requires detection probability as an argument, because the only place it's called from is the
-     * energy intake rate integral loop, and detection probability for the same x, z, pc is already precalculated
-     * there. However, in the cached version at least, it's very fast to call the detection probability function
-     * because it's already cached. If I need this function separately from that loop with precalculated detprob,
-     * I can always put in a check to pass det_prob = -1 and force a recalculation if det_prob == -1. */
-    double result;
-    if (DIAG_NOCACHE) {
-        result = (det_prob > 0.) ? integrate_energy_cost_over_prey_path(x, z, pt, is_energy_cost) / det_prob : 0.;
-    } else {
-        long long key = xzptiec_hash_key(x, z, pt, is_energy_cost);
-        auto cached_value = mean_maneuver_cost_cache.find(key);
-        if (cached_value == mean_maneuver_cost_cache.end()) {
-            result = (det_prob > 0.) ? integrate_energy_cost_over_prey_path(x, z, pt, is_energy_cost) / det_prob : 0.;
-            mean_maneuver_cost_cache[key] = result;
-            ++mean_maneuver_cost_cache_misses;
-        } else {
-            result = cached_value->second;
-            ++mean_maneuver_cost_cache_hits;
-        }
-    }
-    assert(isfinite(result));
-    return result;
-}
-
 double Forager::RateOfEnergyIntake(bool is_net, bool is_cost) {
     assert(num_prey_types() > 0);
     double x, y; // temporary holder for x values (y is required but unused) during the integrations
@@ -312,13 +288,13 @@ double Forager::RateOfEnergyIntake(bool is_net, bool is_cost) {
         bool prey_is_resolvable;
         double pd, pf, ph, ch, E, dp, dd;
         for (auto & pt : prey_types) {
-            prey_is_resolvable = (gsl_pow_2(*x) + gsl_pow_2(z) <= gsl_pow_2(pt->get_max_visible_distance()));
+            prey_is_resolvable = (gsl_pow_2(*x) + gsl_pow_2(z) <= pt->rsq);
             if (prey_is_resolvable && (pt->prey_drift_concentration > 0 || pt->debris_drift_concentration > 0)) {
-                pd = detection_probability(*x, z, pt);
-                auto mdps = mean_discrimination_probabilities(*x, z, pt, pd);
+                pd = detection_probability(*x, z, *pt);
+                auto mdps = expected_discrimination_probabilities(*x, z, *pt, pd);
                 pf = mdps.first;     // false positive probability
                 ph = mdps.second;    // true hit probability
-                ch = (is_net || is_cost) ? mean_maneuver_cost(*x, z, pt, true, pd) : 0;
+                ch = (is_net || is_cost) ? expected_maneuver_cost(*x, z, *pt, true, pd) : 0;
                 E = (is_cost) ? 0 : pt->energy_content;
                 dp = pt->prey_drift_concentration;
                 dd = pt->debris_drift_concentration;
@@ -338,14 +314,14 @@ double Forager::RateOfEnergyIntake(bool is_net, bool is_cost) {
         bool prey_is_resolvable;
         double pd, pf, ph, h, dp, dd;
         for (auto & pt : prey_types) {
-            prey_is_resolvable = (gsl_pow_2(*x) + gsl_pow_2(z) <= gsl_pow_2(pt->get_max_visible_distance()));
+            prey_is_resolvable = (gsl_pow_2(*x) + gsl_pow_2(z) <= pt->rsq);
             if (prey_is_resolvable && (pt->prey_drift_concentration > 0 || pt->debris_drift_concentration > 0)) {
-                pd = detection_probability(*x, z, pt);
-                auto mdps = mean_discrimination_probabilities(*x, z, pt, pd);
+                pd = detection_probability(*x, z, *pt);
+                auto mdps = expected_discrimination_probabilities(*x, z, *pt, pd);
                 pf = mdps.first;     // false positive probability
                 ph = mdps.second;    // true hit probability
                 // printf("For prey type %20s, pf=%.5f and ph=%.5f.\n", pt->name.c_str(), pf, ph);
-                h = mean_maneuver_cost(*x, z, pt, false, pd);
+                h = expected_maneuver_cost(*x, z, *pt, false, pd);
                 dp = pt->prey_drift_concentration;
                 dd = pt->debris_drift_concentration;
                 sum += pd * v * h * (ph * dp + pf * dd);

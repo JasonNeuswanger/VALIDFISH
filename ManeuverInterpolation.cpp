@@ -122,6 +122,12 @@ fs::path ManeuverInterpolation::files_folder() {
     return temperature_path.string();
 }
 
+std::string ManeuverInterpolation::source_filename(bool is_energy_cost) {
+    fs::path file_name = (is_energy_cost) ? fs::path("energy_cost.csv") : fs::path("pursuit_duration.csv");
+    fs::path file_path = files_folder() / file_name;
+    return file_path.string();
+}
+
 void ManeuverInterpolation::load_csv(bool is_energy_cost) {
     // Create the LineReader object
     fs::path file_name = (is_energy_cost ? fs::path("energy_cost.csv") : fs::path("pursuit_duration.csv"));

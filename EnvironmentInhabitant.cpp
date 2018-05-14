@@ -22,11 +22,26 @@ double Forager::water_velocity(double z) {
 }
 
 void Forager::build_sample_prey_types() {
-    add_prey_type(1, "1 mm class",   0.001,  -1, 1, 30,    50000, false);
-    add_prey_type(2, "2 mm class",   0.002,  -1, 1, 9,     3000,  false);
-    add_prey_type(3, "3-4 mm class", 0.0035, -1, 1, 4,     700,   false);
-    add_prey_type(4, "5-7 mm class", 0.006,  -1, 1, 0.15,  125,   false);
-    add_prey_type(5, "8+ mm class",  0.01,   -1, 1, 0.015, 30,    false);
+//    add_prey_type(1, "1 mm class",   0.001,  -1, 1, 30,    50000, false);
+//    add_prey_type(2, "2 mm class",   0.002,  -1, 1, 9,     3000,  false);
+//    add_prey_type(3, "3-4 mm class", 0.0035, -1, 1, 4,     700,   false);
+//    add_prey_type(4, "5-7 mm class", 0.006,  -1, 1, 0.15,  125,   false);
+//    add_prey_type(5, "8+ mm class",  0.01,   -1, 1, 0.015, 30,    false);
+
+    // The problem is that the cache is frequently missing when I use all these prey types. However, when I
+    // use the sample prey types with all the same fish, the caches often hit.
+    // Ahh, units on prey length are one of the problems.
+
+    add_prey_type(5, "5 mm size class", 0.0050, 9.6548, 1, 0.1948, 2.3182, false);
+    add_prey_type(10, "Cinygmula adult", 0.0000, 0.0000, 1, 0.0000, 0.0000, false);
+    add_prey_type(8, "10+ mm size class", 0.0100, 4.2332, 1, 0.0600, 0.1818, false);
+    add_prey_type(9, "Drunella adult", 0.0000, 0.0000, 1, 0.0000, 0.0000, false);
+    add_prey_type(7, "8-9 mm size class", 0.0090, 3.0058, 1, 0.0600, 0.1475, false);
+    add_prey_type(6, "6-7 mm size class", 0.0063, 15.3199, 1, 0.0899, 0.5339, false);
+    add_prey_type(4, "4 mm size class", 0.0040, 2.3011, 1, 0.8918, 5.2908, false);
+    add_prey_type(2, "2 mm size class", 0.0020, 0.9435, 1, 8.1762, 101.5793, false);
+    add_prey_type(1, "1 mm size class", 0.0010, 0.3865, 1, 7.7640, 2240.3654, false);
+    add_prey_type(3, "3 mm size class", 0.0030, 2.8867, 1, 2.1284, 18.0124, false);
     process_prey_type_changes();
 }
 

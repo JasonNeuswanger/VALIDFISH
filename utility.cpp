@@ -5,45 +5,36 @@
 #include "utility.h"
 
 double cot(double x) {
-    double s = sin(x);
-    double c = cos(x);
-    return c / s;
+    return cos(x) / sin(x);
 }
 
-long long xzptt_hash_key(double x, double z, std::shared_ptr<PreyType> pt, double T) {
-    long long intx = (long) round(x / MEMOIZATION_PRECISION);
-    long long intz = (long) round(z / MEMOIZATION_PRECISION);
-    long long ptid = pt->uniqueid;
-    const double elapsed_time_memoization_precision = 0.1;
-    long long intT = (long) round(T / elapsed_time_memoization_precision);
-    long long hash_key_value = (intx << 48) + (intz << 32) + (ptid << 16) + intT;
-    return hash_key_value;
+long long xzptt_hash_key(double x, double z, long long int pt_uniqueid, double T) {
+    const long long intx = (long) (x / MEMOIZATION_PRECISION);
+    const long long intz = (long) (z / MEMOIZATION_PRECISION);
+    const long long intT = (long) (T / MEMOIZATION_PRECISION_TIME);
+    return (intx << 48) + (intz << 32) + (pt_uniqueid << 16) + intT;
 }
 
-long long mdp_hash_key(double x, double z, std::shared_ptr<PreyType> pt, double det_prob) {
-    long long intx = (long) round(x / MEMOIZATION_PRECISION);
-    long long intz = (long) round(z / MEMOIZATION_PRECISION);
-    long long ptid = pt->uniqueid;
-    const double detection_probability_memoization_precision = 0.01;
-    long long intdp = (long) round(det_prob / detection_probability_memoization_precision);
-    long long hash_key_value = (intx << 48) + (intz << 32) + (ptid << 16) + intdp;
-    return hash_key_value;
+long long mdp_hash_key(double x, double z, long long int pt_uniqueid, double det_prob) {
+    const long long intx = (long) (x / MEMOIZATION_PRECISION);
+    const long long intz = (long) (z / MEMOIZATION_PRECISION);
+    const long long intdp = (long) (det_prob / MEMOIZATION_PRECISION_PROBABILITY);
+    return (intx << 48) + (intz << 32) + (pt_uniqueid << 16) + intdp;
 }
 
-long long xzptiec_hash_key(double x, double z, std::shared_ptr<PreyType> pt, bool is_energy_cost) {
+long long xzptiec_hash_key(double x, double z, long long int pt_uniqueid, bool is_energy_cost) {
     /* This function works by getting 16-bit binary integer representations of each input parameter and
      * concatenating them into a single 64-bit (long long) binary representation of a new integer for the key. */
-    long long intx = (long) round(x / MEMOIZATION_PRECISION);
-    long long intz = (long) round(z / MEMOIZATION_PRECISION);
-    long long ptid = pt->uniqueid;
-    long long hash_key_value = (intx << 48) + (intz << 32) + (ptid << 16) + is_energy_cost;
+    long long intx = (long) (x / MEMOIZATION_PRECISION);
+    long long intz = (long) (z / MEMOIZATION_PRECISION);
+    return (intx << 48) + (intz << 32) + (pt_uniqueid << 16) + is_energy_cost;
 //    std::cout << "val for intx=10k would be " << std::bitset<64>(50) << std::endl;
 //    std::cout << "intx = " << intx << " (" << x << ")    intx = " << std::bitset<64>(intx)  << std::endl;
 //    std::cout << "intx = " << intz << " (" << z << ")    intx = " << std::bitset<64>(intz)  << std::endl;
 //    std::cout << "pcid = " << pcid << "           pcid = " << std::bitset<64>(pcid)  << std::endl;
 //    std::cout << "isec = " << is_energy_cost << "           isec = " << std::bitset<64>(is_energy_cost)  << std::endl;
 //    std::cout << "hkvl = " << hash_key_value << " = " << std::bitset<64>(hash_key_value)  << std::endl;
-    return hash_key_value;
+//    return hash_key_value;
 }
 
 void print_gsl_errors(const char * reason, const char * file, int line, int gsl_errno) {
@@ -62,7 +53,7 @@ cartesian_3D_coords cartesian_from_spherical(double rho, double theta, double ph
 
 double fRand(double fMin, double fMax)
 {
-    double f = (double)rand() / RAND_MAX;
+    double f = (double) rand() / RAND_MAX;
     return fMin + f * (fMax - fMin);
 }
 

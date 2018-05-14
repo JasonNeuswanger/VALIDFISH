@@ -25,7 +25,7 @@ double volume_integrand_middle(double theta, void *params) {
     const double rhoMax = isnan(p->max_rho) ? fmin(rhoLim, p->radius) : fmin(rhoLim, p->max_rho);
     auto *f3d = (gsl_function_pp_3d<double(double, double *, double *)> *) (p->func);
     *(f3d->y) = theta; // Using 'y' in gsl_function_pp_3d as a placeholder to pass theta to the inner integral
-#if USE_ADAPTIVE_INTEGRATION
+    #if USE_ADAPTIVE_INTEGRATION
         gsl_integration_workspace *w = gsl_integration_workspace_alloc(QUAD_SUBINT_LIM);
         gsl_integration_qags(&F, rhoMin, rhoMax, QUAD_EPSABS, QUAD_EPSREL, QUAD_SUBINT_LIM, w, &result, &error);
         gsl_integration_workspace_free(w);
@@ -97,7 +97,7 @@ struct integrate_over_xz_plane_inner_params {gsl_function *F; double rho; double
 double integrate_over_xz_plane_inner(double x, void *params) {
     struct integrate_over_xz_plane_inner_params *p = (struct integrate_over_xz_plane_inner_params *) params;
     double result, error;
-    const double z_circle_edge = sqrt(pow(p->rho, 2) - pow(x, 2));
+    const double z_circle_edge = sqrt(gsl_pow_2(p->rho) - gsl_pow_2(x));
     const double zMin = fmax(-z_circle_edge, p->bottom_z);
     const double zMax = fmin(z_circle_edge, p->surface_z);
     if (!p->integrand_is_1d) {
@@ -135,65 +135,25 @@ double Forager::integrate_over_xz_plane(gsl_function *func, bool integrand_is_1d
     return 2.0 * result;
 }
 
-double Forager::integrate_energy_cost_over_prey_path(double x, double z, std::shared_ptr<PreyType> pt, bool is_energy_cost) {
-    const double prey_radius = pt->get_max_visible_distance();
-    const double xsq = gsl_pow_2(x);
-    const double zsq = gsl_pow_2(z);
-    const double rsq = gsl_pow_2(prey_radius);
-    const double rhosq = (theta < M_PI) ? gsl_pow_2(prey_radius * sin(theta / 2)) : rsq; // rho = max radius in lateral direction
-    if (xsq + zsq >= rhosq) { return 0; }    // if (x,z) are outside search volume return 0
-    const double y0 = sqrt(rsq - xsq - zsq);
-    const double yT = fmax(-y0, cot(theta/2) * sqrt(xsq + zsq));
-    const double v = water_velocity(z); // Duplicating the passage_time function within this one because we need v below
-    const double T = (y0 - yT) / v;     // and this way there's no need to calculate water_velocity(z) twice.
-    auto integrand = [this, x, z, pt, y0, v, prey_radius, is_energy_cost](double t)->double{
-        const double y = y0 - v * t;
-        assert(gsl_pow_2(prey_radius) >= gsl_pow_2(x) + gsl_pow_2(y) + gsl_pow_2(z));
-        const double det_pdf = detection_pdf_at_t(t, x, z, pt);
-        if (det_pdf == 0) { return 0; }
-        const double maneuver_v = (v + focal_velocity) / 2;  // Calculate cost from avg of focal & prey position velocities
-        return det_pdf * maneuver_cost(x, y, z, maneuver_v, is_energy_cost);
-    };
-    gsl_function_pp<decltype(integrand)> Fp(integrand);
-    gsl_function *F = static_cast<gsl_function*>(&Fp);
-    double result, error;
-    #if USE_ADAPTIVE_INTEGRATION
-        gsl_integration_workspace *w = gsl_integration_workspace_alloc(QUAD_SUBINT_LIM);
-            gsl_integration_qags(F, 0, T, QUAD_EPSABS, 0.1*QUAD_EPSREL, QUAD_SUBINT_LIM, w, &result, &error);
-            gsl_integration_workspace_free(w);
-    #else
-        size_t neval;
-        gsl_integration_qng(F, 0, T, QUAD_EPSABS, 0.1*QUAD_EPSREL, &result, &error, &neval);
-    #endif
-    assert(isfinite(result));
-    assert(result >= 0);
-    return result;
-}
-
-double Forager::passage_time(double x, double z, std::shared_ptr<PreyType> pt) {
+double Forager::passage_time(double x, double z, const PreyType &pt) {
     /* Returns the duration of time (s) for which the item at (x, z) is passing through the search volume
      * This is only used in integrate_detection_pdf below, but it's also shared in the Python module for analysis. */
-    const double prey_radius = pt->get_max_visible_distance();
     const double xsq = gsl_pow_2(x);
     const double zsq = gsl_pow_2(z);
-    const double rsq = gsl_pow_2(prey_radius);
-    const double rhosq = (theta < M_PI) ? gsl_pow_2(prey_radius * sin(theta / 2)) : rsq; // rho = max prey_radius in lateral direction
-    if (xsq + zsq >= rhosq) { return 0; }    // if (x,z) are outside search volume return 0
-    const double y0 = sqrt(rsq - xsq - zsq);
+    if (xsq + zsq >= pt.rhosq) { return 0; }    // if (x,z) are outside search volume return 0
+    const double y0 = sqrt(pt.rsq - xsq - zsq);
     const double yT = fmax(-y0, cot(theta/2) * sqrt(xsq + zsq));
     const double result = (y0 - yT) / water_velocity(z);
     assert(result >= 0);
     return result;
 }
 
-double Forager::time_at_y(double y, double x, double z, std::shared_ptr<PreyType> pt) {
-    double prey_radius = pt->get_max_visible_distance();
+double Forager::time_at_y(double y, double x, double z, const PreyType &pt) {
     const double xsq = gsl_pow_2(x);
     const double ysq = gsl_pow_2(y);
     const double zsq = gsl_pow_2(z);
-    const double rsq = gsl_pow_2(prey_radius);
-    assert(xsq + ysq + zsq <= rsq);
-    const double y0 = sqrt(rsq - xsq - zsq);
+    assert(xsq + ysq + zsq <= pt.rsq);
+    const double y0 = sqrt(pt.rsq - xsq - zsq);
     assert(y >= y0);
     const double yT = fmax(-y0, cot(theta / 2) * sqrt(xsq + zsq));
     assert(y <= yT);
@@ -202,6 +162,15 @@ double Forager::time_at_y(double y, double x, double z, std::shared_ptr<PreyType
     assert(isfinite(t_y));
     assert(t_y >= 0);
     return t_y;
+}
+
+double Forager::y_at_time(double t, double x, double z, const PreyType &pt) {
+    const double xsq = gsl_pow_2(x);
+    const double zsq = gsl_pow_2(z);
+    assert(xsq + zsq <= pt.rsq);
+    const double y0 = sqrt(pt.rsq - xsq - zsq);
+    const double v = water_velocity(z);
+    return y0 - t * v;
 }
 
 double* Forager::random_xz() {
