@@ -152,6 +152,9 @@ double Forager::time_at_y(double y, double x, double z, const PreyType &pt) {
     const double xsq = gsl_pow_2(x);
     const double ysq = gsl_pow_2(y);
     const double zsq = gsl_pow_2(z);
+    if (xsq + ysq + zsq > pt.rsq) {
+        printf("In time_at_y, had xsq+ysq+zsq=%.8f > rsq=%.8f.\n", xsq + ysq + zsq, pt.rsq);
+    }
     assert(xsq + ysq + zsq <= pt.rsq);
     const double y0 = sqrt(pt.rsq - xsq - zsq);
     assert(y >= y0);
