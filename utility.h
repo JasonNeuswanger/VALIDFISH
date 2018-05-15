@@ -17,7 +17,7 @@
 
 double cot(double x);
 
-long long xzptt_hash_key(double x, double z, long long int pt_uniqueid, double T);
+long long xyzpt_hash_key(double x, double y, double z, long long int pt_uniqueid);
 
 long long mdp_hash_key(double x, double z, long long int pt_uniqueid, double det_prob);
 

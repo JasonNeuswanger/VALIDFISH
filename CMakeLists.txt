@@ -17,13 +17,17 @@ set(SOURCES
     PreyType.cpp PreyType.h
     Swimmer.cpp Swimmer.h
     ManeuverInterpolation.cpp ManeuverInterpolation.h
+    Wolf.h Wolf.cpp
     Optimizer.cpp Optimizer.h
     utility.h utility.cpp
     lib/gsl_function_pp.h
     lib/fast-cpp-csv-parser/csv.h
     lib/flat_hash_map.hpp
     ForagerGetters.cpp
-    Printing.cpp DetectionSubmodel.cpp DiscriminationSubmodel.cpp Energetics.cpp)
+    Printing.cpp
+    DetectionSubmodel.cpp
+    DiscriminationSubmodel.cpp
+    Energetics.cpp)
 
 find_package(GSL REQUIRED)
 find_package(Threads REQUIRED)

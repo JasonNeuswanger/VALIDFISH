@@ -93,8 +93,9 @@ Forager::~Forager() {
     /* Destructor should deallocate any alloc'd c objects stored as instance variables, currently gsl interpolations */
 }
 
+// todo write a bounds check function for both strategy and parameters to print out if a fish is within 1 % of upper or lower bound for any of them
+
 void Forager::set_strategy_bounds() {
-    // todo write a bounds check function for both strategy and parameters to print out if a fish is within 1 % of upper or lower bound for any of them
     strategy_bounds[s_sigma_A][0] = 0.1;                    // 0.1 represents an unrealistically forward-concentrated extreme of attention
     strategy_bounds[s_sigma_A][1] = 4.0;                    // 4.0 gives a pretty much equal distribution of attention
     strategy_bounds[s_mean_column_velocity][0] = 0.01;

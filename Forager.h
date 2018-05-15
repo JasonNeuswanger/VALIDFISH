@@ -32,9 +32,8 @@
 #define QUAD_SUBINT_LIM 100             // only relevant when using adaptive integration
 #define QUAD_EPSABS 0                   // always set to 0 to use relative instead
 #define QUAD_EPSREL 1e0                 // set precision, from 1e0 to 1e-3 or so (fast to slow) -- 1e0 works fine
-#define MEMOIZATION_PRECISION 0.015     // spatial precision of the memoized caches in m, currently 1.5 cm
-#define MEMOIZATION_PRECISION_TIME 0.1  // temporal precision of memoized caches, in seconds
-#define MEMOIZATION_PRECISION_PROBABILITY 0.01  // temporal precision of detection probability based cache
+#define MEMOIZATION_PRECISION 0.01      // spatial precision of the memoized caches in m, currently 2 cm
+#define MEMOIZATION_PRECISION_PROBABILITY 0.01  // precision of detection probability based cache
 #define GSL_ERROR_POLICY 0              // 0 to ignore GSL errors. 1 to print them but continue. 2 to abort (for debugging mode).
 
 #define DIAG_NOCACHE false              // Disable various internal caches (works MUCH more slowly if set to true)
@@ -173,16 +172,21 @@ public:
 
     enum Strategy { s_sigma_A, s_mean_column_velocity, s_inspection_time, s_discrimination_threshold, s_search_image };   // attention included only to specify bounds
     enum Parameter { p_delta_0, p_alpha_tau, p_alpha_d, p_beta, p_A_0, p_discriminability, p_flicker_frequency, p_tau_0, p_nu_0, p_delta_p, p_omega_p, p_ti_p, p_sigma_p_0};
+    static const Strategy first_strategy = s_sigma_A;       // These make it possible for other functions (printing, validation, etc)
+    static const Strategy last_strategy = s_search_image;   // to loop over the strategies and parameters.
+    static const Parameter first_parameter = p_delta_0;
+    static const Parameter last_parameter = p_sigma_p_0;
 
     // Name map so feedback about parameters (validation problems, etc) can print out the actual name and not just a number.
-    std::map<Strategy, std::string> strategy_names = {
+    std::unordered_map<Strategy, std::string> strategy_names = {
             {s_sigma_A, "sigma_A"},
             {s_mean_column_velocity, "mean_column_velocity"},
             {s_inspection_time, "inspection_time"},
             {s_discrimination_threshold, "discrimination_threshold"},
             {s_search_image, "search_image"}
     };
-    std::map<Parameter, std::string> parameter_names = {
+
+    std::unordered_map<Parameter, std::string> parameter_names = {
             {p_delta_0, "delta_0"},
             {p_alpha_tau, "alpha_tau"},
             {p_alpha_d, "alpha_d"},
@@ -198,14 +202,13 @@ public:
             {p_sigma_p_0, "sigma_p_0"}
     };
 
+    std::unordered_map<Strategy, std::array<double, 2>> strategy_bounds;
+    std::unordered_map<Parameter, std::array<double, 2>> parameter_bounds;
+
     double validate(Strategy s, double v);
     double validate(Parameter p, double v);
     // todo build manipulations
     enum Manipulation { m_prey_multiplier, m_debris_multiplier, m_crypticity_multiplier };
-    typedef std::unordered_map<Strategy, std::array<double, 2>> StrategyBoundsMap;
-    typedef std::unordered_map<Parameter, std::array<double, 2>> ParameterBoundsMap;
-    StrategyBoundsMap strategy_bounds;
-    ParameterBoundsMap parameter_bounds;
 
     double theta = 1.83 * M_PI; // gives a 30 degree blind spot in the rear, Rountree 2009 -- but todo find a better source
     double sigma_A, mean_column_velocity, inspection_time, discrimination_threshold, search_image; // TEMPORARILY PUBLIC, SHOULD MAKE PRIVATE

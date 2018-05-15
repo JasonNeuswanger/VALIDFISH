@@ -33,6 +33,11 @@ public:
         std::cout << strStream.str() << std::endl;
     }
 
+    int quiet_stop() {
+        const auto end = Clock::now();
+        return (int) std::chrono::duration_cast<Resolution>(end - mStart).count();
+    }
+
 }; // ExecutionTimer
 
 #endif //DRIFTMODELC_EXECUTIONTIMER_H

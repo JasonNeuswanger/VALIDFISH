@@ -68,17 +68,19 @@ fs::path ManeuverInterpolation::files_folder() {
     for (const auto& entry : fs::directory_iterator(fork_length_path)) {
         auto filename = entry.path().filename().string();
         if (fs::is_directory(entry.status())) {
-            std::string velocity_str = filename.substr(filename.find("_")+1, filename.length());
+            std::string velocity_str = filename.substr(filename.find('_')+1, filename.length());
             const double folder_velocity = std::stof(velocity_str);
             const double velocity_distance = fabs(velocity_cms - folder_velocity);
+            //printf("Folder velocity is %.2f with folder name %s. Distance from velocity %.2f is %.2f.\n", folder_velocity, velocity_str.c_str(), velocity_cms, velocity_distance);
             if (velocity_distance < nearest_velocity_distance) {
                 nearest_velocity_distance = velocity_distance;
                 nearest_velocity = folder_velocity;
                 nearest_velocity_str = velocity_str;
+                //printf("Nearest velocity is %.2f with folder name %s.\n", nearest_velocity, nearest_velocity_str.c_str());
             }
         }
     }
-    assert(!isnan(nearest_velocity));
+    assert(isfinite(nearest_velocity));
     fs::path velocity_path = fork_length_path / ("fcs_" + nearest_velocity_str);
     assert(fs::exists(velocity_path));
     assert(fs::is_directory(velocity_path));
@@ -97,7 +99,7 @@ fs::path ManeuverInterpolation::files_folder() {
     for (const auto& entry : fs::directory_iterator(velocity_path)) {
         auto filename = entry.path().filename().string();
         if (fs::is_directory(entry.status())) {
-            std::string temperature_str = filename.substr(filename.find("_")+1, filename.length());
+            std::string temperature_str = filename.substr(filename.find('_')+1, filename.length());
             const double folder_temperature = std::stof(temperature_str);
             const double temperature_distance = fabs(temperature_C - folder_temperature);
             if (temperature_distance < nearest_temperature_distance) {

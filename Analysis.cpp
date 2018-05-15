@@ -8,8 +8,8 @@ double Forager::relative_pursuits_by_position_single_prey_type(double x, double 
     /* This function gives an index of the number of pursuits per unit time made on items detected at each position.
      * However, it's based on probability densities, so it can't really translate into meaningful units unless it's
      * integrated over some volume. */
-    if (!location_is_profitable(x, y, z, *pt)) { return 0; }
     const double v = water_velocity(z);
+    if (!location_is_profitable(x, y, z, *pt)) { return 0; }
     const double detection_pdf = detection_pdf_at_y(y, x, z, *pt);
     const double t_y = time_at_y(y, x, z, *pt);
     auto dps = discrimination_probabilities(t_y, x, z, *pt);
@@ -21,9 +21,10 @@ double Forager::relative_pursuits_by_position_single_prey_type(double x, double 
 
 double Forager::relative_pursuits_by_position(double x, double y, double z) {
     /* Adds results from the above function across all prey types */
+    if (z >= surface_z || z <= bottom_z) return 0;
     double total = 0;
     for (auto & pt : prey_types) {
-        total += relative_pursuits_by_position_single_prey_type(x, y, z, pt);
+        total += relative_pursuits_by_position_single_prey_type(fabs(x), y, z, pt); // Using abs(x) here for symmetry
     }
     return total;
 }

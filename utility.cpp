@@ -8,11 +8,11 @@ double cot(double x) {
     return cos(x) / sin(x);
 }
 
-long long xzptt_hash_key(double x, double z, long long int pt_uniqueid, double T) {
+long long xyzpt_hash_key(double x, double y, double z, long long int pt_uniqueid) {
     const long long intx = (long) (x / MEMOIZATION_PRECISION);
+    const long long inty = (long) (y / MEMOIZATION_PRECISION);
     const long long intz = (long) (z / MEMOIZATION_PRECISION);
-    const long long intT = (long) (T / MEMOIZATION_PRECISION_TIME);
-    return (intx << 48) + (intz << 32) + (pt_uniqueid << 16) + intT;
+    return (intx << 48) + (inty << 32) + (intz << 16) + pt_uniqueid;
 }
 
 long long mdp_hash_key(double x, double z, long long int pt_uniqueid, double det_prob) {
@@ -25,8 +25,8 @@ long long mdp_hash_key(double x, double z, long long int pt_uniqueid, double det
 long long xzptiec_hash_key(double x, double z, long long int pt_uniqueid, bool is_energy_cost) {
     /* This function works by getting 16-bit binary integer representations of each input parameter and
      * concatenating them into a single 64-bit (long long) binary representation of a new integer for the key. */
-    long long intx = (long) (x / MEMOIZATION_PRECISION);
-    long long intz = (long) (z / MEMOIZATION_PRECISION);
+    const long long intx = (long) (x / MEMOIZATION_PRECISION);
+    const long long intz = (long) (z / MEMOIZATION_PRECISION);
     return (intx << 48) + (intz << 32) + (pt_uniqueid << 16) + is_energy_cost;
 //    std::cout << "val for intx=10k would be " << std::bitset<64>(50) << std::endl;
 //    std::cout << "intx = " << intx << " (" << x << ")    intx = " << std::bitset<64>(intx)  << std::endl;

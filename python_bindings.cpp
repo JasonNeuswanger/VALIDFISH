@@ -15,7 +15,6 @@ PYBIND11_MODULE(pyvalidfish, m) {
 
     /* --------------------- Prey type class and components ----------------------- */
 
-    //py::class_<PreyType> preytype(m, "PreyType");
     py::class_<PreyType, std::shared_ptr<PreyType>> preytype(m, "PreyType");
 
     preytype.def(py::init<int, std::string, double, double, double, double, bool, double>())
@@ -29,7 +28,7 @@ PYBIND11_MODULE(pyvalidfish, m) {
 
     /* --------------------- Forager class and components ----------------------- */
 
-    py::class_<Forager> forager(m, "Forager");
+    py::class_<Forager, std::shared_ptr<Forager>> forager(m, "Forager");
 
     forager.def(py::init<double, double, double, double, double, double, double, double, double, double, double, double,
                     double, double, unsigned, double, double, double, double , double, double, double, double, std::string *>())
@@ -104,10 +103,9 @@ PYBIND11_MODULE(pyvalidfish, m) {
 
     /* --------------------- Optimizer class and components ----------------------- */
 
-    py::class_<Optimizer> optimizer(m, "Optimizer");
-    optimizer.def(py::init<Forager *, size_t, size_t, bool>())
+    py::class_<Optimizer, std::shared_ptr<Optimizer>> optimizer(m, "Optimizer");
+    optimizer.def(py::init<std::shared_ptr<Forager>, size_t, size_t, bool>())
             .def("optimize_forager", &Optimizer::optimize_forager)
-            .def("set_algorithm_options", &Optimizer::set_algorithm_options)
             .def("add_context", &Optimizer::add_context)
             .def("clear_context", &Optimizer::clear_context);
 

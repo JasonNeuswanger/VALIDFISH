@@ -62,7 +62,8 @@ std::pair<double, double> Forager::discrimination_probabilities(double t, double
                 1 - gsl_cdf_gaussian_P((discrimination_threshold - discriminability) / visual_sigma, 1);
         return std::pair<double, double>{false_positive_probability, true_hit_probability};
     } else {
-        long long key = xzptt_hash_key(x, z, pt.uniqueid, t);
+        const double y = y_at_time(t, x, z, pt);
+        long long key = xyzpt_hash_key(x, y, z, pt.uniqueid);
         auto cached_value = discrimination_probability_cache.find(key);
         if (cached_value == discrimination_probability_cache.end()) {
             const double visual_sigma = sqrt(1 + perceptual_variance(t, x, z, pt));

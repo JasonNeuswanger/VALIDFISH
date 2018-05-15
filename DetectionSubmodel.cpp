@@ -71,7 +71,8 @@ double Forager::tau(double t, double x, double z, const PreyType &pt) {
     if (DIAG_NOCACHE or DIAG_NOCACHE_TAU) {
         result = calculate_tau(t, x, z, pt);
     } else {
-        long long key = xzptt_hash_key(x, z, pt.uniqueid, t);
+        const double y = y_at_time(t, x, z, pt);
+        long long key = xyzpt_hash_key(x, y, z, pt.uniqueid);
         auto cached_value = tau_cache.find(key);
         if (cached_value == tau_cache.end()) {
             result = calculate_tau(t, x, z, pt);
@@ -193,7 +194,8 @@ double Forager::mean_value_function(double T, double x, double z, const PreyType
     if (DIAG_NOCACHE || DIAG_NOCACHE_MEAN_VALUE_FUNCTION) {
         result = calculate_mean_value_function(T, x, z, pt);
     } else {
-        long long key = xzptt_hash_key(x, z, pt.uniqueid, T);
+        const double y = y_at_time(T, x, z, pt);
+        long long key = xyzpt_hash_key(x, y, z, pt.uniqueid);
         auto cached_value = mean_value_function_cache.find(key);
         if (cached_value == mean_value_function_cache.end()) {
             result = calculate_mean_value_function(T, x, z, pt);
@@ -274,7 +276,8 @@ double Forager::detection_pdf_at_t(double t, double x, double z, const PreyType 
     if (DIAG_NOCACHE or DIAG_NOCACHE_DETECTION_PDF) {
         result = calculate_detection_pdf_at_t(t, x, z, pt);
     } else {
-        long long key = xzptt_hash_key(x, z, pt.uniqueid, t);
+        const double y = y_at_time(t, x, z, pt);
+        long long key = xyzpt_hash_key(x, y, z, pt.uniqueid);
         auto cached_value = detection_pdf_cache.find(key);
         if (cached_value == detection_pdf_cache.end()) {
             result = calculate_detection_pdf_at_t(t, x, z, pt);

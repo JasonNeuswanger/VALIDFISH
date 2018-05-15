@@ -20,10 +20,9 @@ void Forager::print_cache_sizes() {
 
 void Forager::print_strategy() {
     printf("Foraging strategy:\n");
-    printf("sigma_A                  : %.5f radians\n", sigma_A);
-    printf("mean column velocity     : %.5f m/s        (focal velocity %.5f m/s)\n", mean_column_velocity,
-           focal_velocity);
-    printf("inspection time          : %.8f s\n", inspection_time);
+    printf("                 sigma_A : %.5f radians\n", sigma_A);
+    printf("    mean column velocity : %.5f m/s        (focal velocity %.5f m/s)\n", mean_column_velocity, focal_velocity);
+    printf("         inspection time : %.8f s\n", inspection_time);
     printf("discrimination threshold : %.8f\n", discrimination_threshold);
     std::shared_ptr<PreyType> search_image_type = nullptr;
     for (auto & pt : prey_types) {
@@ -32,15 +31,15 @@ void Forager::print_strategy() {
         }
     }
     if (search_image_type == nullptr) {
-        printf("search image for         : None\n");
+        printf("        search image for : None\n");
     } else {
-        printf("search image for         : %s\n", search_image_type->name.c_str());
+        printf("        search image for : %s\n", search_image_type->name.c_str());
     }
 }
 
 void Forager::print_parameters() {
     printf("Parameters:\n");
-    for (int pInt = p_delta_0; pInt <= p_nu_0; pInt++) {
+    for (int pInt = first_parameter; pInt <= last_parameter; pInt++) {
         auto p = static_cast<Parameter>(pInt);
         double value = get_parameter(p);
         if (value > 0.0001 && value < 10000) {
