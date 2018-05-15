@@ -131,8 +131,8 @@ void Forager::set_parameter_bounds() {
     parameter_bounds[p_discriminability][1] = 3.5;
     parameter_bounds[p_delta_p][0] = 1e-4;       // put on log scale              -- Scales effect of angular size on perceptual variance
     parameter_bounds[p_delta_p][1] = 1;
-    parameter_bounds[p_omega_p][0] = 0;       //   put on a log scale            -- Scales effect of angular velocity on perceptual variance
-    parameter_bounds[p_omega_p][1] = 10;
+    parameter_bounds[p_omega_p][0] = 1e-4;       //   put on a log scale            -- Scales effect of angular velocity on perceptual variance
+    parameter_bounds[p_omega_p][1] = 1e1;
     parameter_bounds[p_ti_p][0] = 0;       //      linear scale     -- Scales effect of inspection time on perceptual variance
     parameter_bounds[p_ti_p][1] = 1;
     parameter_bounds[p_sigma_p_0][0] = 1e-2;       //   log scale, really no idea          -- Base constant on which other effects on perceptual variance are multiplied
