@@ -24,6 +24,7 @@ inline double Forager::tau_effect_of_angular_area(double distance, const PreyTyp
     const double angular_area = gsl_pow_2(atan2(pt.length, (M_PI * distance)));
     const double min_angular_area = 0.25 * gsl_pow_2(angular_resolution); // smallest visible
     if (angular_area <= min_angular_area) {
+        printf("Angular area %.8f is <= min_angular_area %.8f, returning INF effect.\n", angular_area, min_angular_area);
         return INFINITY;
     } else {
         return delta_0 / (delta_0 + angular_area - min_angular_area);

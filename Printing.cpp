@@ -45,9 +45,9 @@ void Forager::print_parameters() {
         double proportional_value = get_parameter_as_proportion(p);
         std::string log_note = (parameter_log_transforms[p]) ? "log10-" : "";
         if (value > 0.0001 && value < 10000) {
-            printf("%20s : %.5f     (%sproportional: %.2f)", parameter_names[p].c_str(), value, log_note.c_str(), proportional_value);
+            printf("%20s : %9.5f     (%sproportional: %.2f)", parameter_names[p].c_str(), value, log_note.c_str(), proportional_value);
         } else {
-            printf("%20s : %.3e     (%sproportional: %.2f)", parameter_names[p].c_str(), value, log_note.c_str(), proportional_value);
+            printf("%20s : %9.3e     (%sproportional: %.2f)", parameter_names[p].c_str(), value, log_note.c_str(), proportional_value);
         }
         if (proportional_value < 0.01) {
             printf("     %s", parameter_bounds_notes[p][0].c_str());

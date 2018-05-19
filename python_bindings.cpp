@@ -84,6 +84,7 @@ PYBIND11_MODULE(pyvalidfish, m) {
             .def("get_parameter_transformed", &Forager::get_parameter_transformed)
             .def("get_parameter_named", &Forager::get_parameter_named)
             .def("transform_parameter_value", &Forager::transform_parameter_value)
+            .def("reverse_transform_parameter_value", &Forager::reverse_transform_parameter_value)
             .def("transform_parameter_value_as_proportion", &Forager::transform_parameter_value_as_proportion)
             .def("time_at_y", &Forager::time_at_y)
             .def("y_at_time", &Forager::y_at_time)

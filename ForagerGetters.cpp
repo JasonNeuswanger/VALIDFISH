@@ -59,7 +59,11 @@ double Forager::get_parameter(Parameter parameter) {
 }
 
 double Forager::transform_parameter_value(Parameter p, double value) {
-    return (parameter_log_transforms[p]) ? log10(value): value;
+    return (parameter_log_transforms[p]) ? log10(value) : value;
+}
+
+double Forager::reverse_transform_parameter_value(Parameter p, double value) {
+    return (parameter_log_transforms[p]) ? pow(10, value) : value;
 }
 
 double Forager::transform_parameter_value_as_proportion(Parameter p, double value) {

@@ -308,6 +308,7 @@ public:
     double get_parameter_transformed(Parameter p);      // Returns the parameter's direct value or log10-transformed value if appropriate
     double get_parameter_as_proportion(Parameter p);    // Returns parameter as a proportion (0, 1) of its transformed possible range
     double transform_parameter_value(Parameter p, double value);    // Applies a parameter's appropriate transformation (or lack thereof) to any value, for Python plotting
+    double reverse_transform_parameter_value(Parameter p, double value);    // Reverses the above transformation, from log-transformed number (if applicable) to literal parameter
     double transform_parameter_value_as_proportion(Parameter p, double value);  // Same as above but mapped onto (0, 1) as a proportion of the allowed parameter range
     Parameter get_parameter_named(std::string name);
     bool is_parameter_log_scaled(Parameter p);
