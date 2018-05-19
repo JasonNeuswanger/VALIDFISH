@@ -52,6 +52,36 @@ double Forager::perceptual_variance(double t, double x, double z, const PreyType
            * perception_effect_of_angular_velocity(v, t, xsq, zsq, pt.rsq);
 }
 
+std::map<std::string, double> Forager::perceptual_variance_components(double t, double x, double z, std::shared_ptr<PreyType> pt) {
+    // Diagnostic version of the tau function to return the individual multipliers, used for plotting relative importance in Python.
+    const double xsq = gsl_pow_2(x);
+    const double zsq = gsl_pow_2(z);
+    const double v = water_velocity(z);
+    const double y = sqrt(pt->rsq - xsq - zsq) - t * v;
+    const double ysq = gsl_pow_2(y);
+    const double distance = sqrt(xsq + ysq + zsq);
+    const double angular_length = 2 * atan2(pt->length, M_PI * distance);
+    const double standin_for_infinity = 100;     // lower value to indicate infinite effect on the plots
+    std::map<std::string, double> components;
+    components.emplace("t", t); // not a component of perceptual variance, but an index for the others
+    components.emplace("y", y); // not a component of perceptual variance, but gives context for the others
+    if (angular_length < angular_resolution) {
+        components.emplace("angular_length_too_small_to_see", standin_for_infinity);
+    } else {
+        components.emplace("angular_length_too_small_to_see", 1);
+    }
+    if (pt->search_image_status == PreyType::SearchImageStatus::search_image_exclusion) {
+        components.emplace("excluded_by_search_image", standin_for_infinity);
+    } else {
+        components.emplace("excluded_by_search_image", 1);
+    }
+    components.emplace("sigma_p_0", sigma_p_0);
+    components.emplace("inspection_time", perception_effect_of_inspection_time());
+    components.emplace("angular_area", perception_effect_of_angular_area(distance, &*pt));
+    components.emplace("angular_velocity", perception_effect_of_angular_velocity(v, t, xsq, zsq, pt->rsq));
+    return components;
+};
+
 std::pair<double, double> Forager::discrimination_probabilities(double t, double x, double z, const PreyType &pt) {
     // Saves some time over the function below by calculting both at once. But only worth doing when we can use both at once.
     if (DIAG_NO_DISCRIMINATION_MODEL) { return std::pair<double, double>{0.1, 0.9}; }

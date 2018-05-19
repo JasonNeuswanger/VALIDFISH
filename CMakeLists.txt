@@ -27,7 +27,7 @@ set(SOURCES
     Printing.cpp
     DetectionSubmodel.cpp
     DiscriminationSubmodel.cpp
-    Energetics.cpp)
+    Energetics.cpp Bounds.cpp)
 
 find_package(GSL REQUIRED)
 find_package(Threads REQUIRED)

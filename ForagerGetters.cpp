@@ -58,6 +58,43 @@ double Forager::get_parameter(Parameter parameter) {
     }
 }
 
+double Forager::transform_parameter_value(Parameter p, double value) {
+    return (parameter_log_transforms[p]) ? log10(value): value;
+}
+
+double Forager::transform_parameter_value_as_proportion(Parameter p, double value) {
+    double parameter_space_width = transform_parameter_value(p, parameter_bounds[p][1]) - transform_parameter_value(p, parameter_bounds[p][0]);
+    double parameter_space_position = transform_parameter_value(p, value) - transform_parameter_value(p, parameter_bounds[p][0]);
+    return parameter_space_position / parameter_space_width;
+}
+
+double Forager::get_parameter_transformed(Parameter p) {
+    double value = get_parameter(p);
+    return transform_parameter_value(p, value);
+}
+
+double Forager::get_parameter_as_proportion(Parameter p) {
+    /* Returns the current value of the given parameter relative to its possible space, log10-scaled if needed. */
+    double parameter_space_width = transform_parameter_value(p, parameter_bounds[p][1]) - transform_parameter_value(p, parameter_bounds[p][0]);
+    double parameter_space_position = transform_parameter_value(p, get_parameter(p)) - transform_parameter_value(p, parameter_bounds[p][0]);
+    return parameter_space_position / parameter_space_width;
+}
+
+Forager::Parameter Forager::get_parameter_named(std::string name) {
+    // Create the inverted mapping from parameter name to parameter enum value, if not already initialized.
+    if (parameter_named.empty()) {
+        for (auto&& item : parameter_names) {
+            parameter_named.emplace(item.second, item.first);
+        }
+    }
+    // Then return the correct value from that inverted map.
+    return parameter_named[name];
+}
+
+bool Forager::is_parameter_log_scaled(Parameter p) {
+    return parameter_log_transforms[p];
+}
+
 double Forager::get_focal_velocity() {
     return focal_velocity;
 }

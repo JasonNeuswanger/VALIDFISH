@@ -93,86 +93,6 @@ Forager::~Forager() {
     /* Destructor should deallocate any alloc'd c objects stored as instance variables, currently gsl interpolations */
 }
 
-// todo write a bounds check function for both strategy and parameters to print out if a fish is within 1 % of upper or lower bound for any of them
-
-void Forager::set_strategy_bounds() {
-    strategy_bounds[s_sigma_A][0] = 0.1;                    // 0.1 represents an unrealistically forward-concentrated extreme of attention
-    strategy_bounds[s_sigma_A][1] = 4.0;                    // 4.0 gives a pretty much equal distribution of attention
-    strategy_bounds[s_mean_column_velocity][0] = 0.01;
-    strategy_bounds[s_mean_column_velocity][1] = 10 * (0.01 * fork_length_cm);  // ARBITRARY
-    strategy_bounds[s_inspection_time][0] = 0.167; // physiological max 180 degrees/sec, assume 30 degree average, so 0.167 s just to move the eyes, let alone fixation https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5050213/
-    strategy_bounds[s_inspection_time][1] = 1.0;   // just assuming the optimum will never be higher than this; adjust upward if needed
-    strategy_bounds[s_discrimination_threshold][0] = 0;
-    strategy_bounds[s_discrimination_threshold][1] = 6; // 6 intrinsic standard deviations beyond the mean preyishness of debris should be plenty
-    strategy_bounds[s_search_image][0] = -1;    // Search image value of of -1 to 0 means no search image
-    strategy_bounds[s_search_image][1] = 1;     // Search image values between 0 and 1 are split evenly across search-image-eligible categories ordered by number
-}
-
-void Forager::set_parameter_bounds() {
-    /* All parameter bounds were set via a priori consieration of their intended functions and plausible values in those roles.
-     * They therefore cannot be grossly overfitted to serve some hidden meaning very different from the one intended. */
-    parameter_bounds[p_delta_0][0] = 1e-6;     // delta_0           -- Scales effect of angular size on tau; bigger delta_0 = harder detection.
-    parameter_bounds[p_delta_0][1] = 1e-2;
-    parameter_bounds[p_alpha_tau][0] = 1;      // alpha_tau          -- The factor by which having a search image reduces tau. Ranges from 1 (no effect) to 100x improvement.
-    parameter_bounds[p_alpha_tau][1] = 100;
-    parameter_bounds[p_alpha_d][0] = 1;        // alpha_d            -- The factor by which having a search images increases the effect of inspection time in reducing perceptual variance
-    parameter_bounds[p_alpha_d][1] = 100;
-    parameter_bounds[p_beta][0] = 0;     // beta              -- Scales effect of set size on tau
-    parameter_bounds[p_beta][1] = 2;
-    parameter_bounds[p_A_0][0] = 0;      // A_0               -- Spatial attention constant, scales effect of theta on tau; smaller A_0 = harder detection.
-    parameter_bounds[p_A_0][1] = 2;
-    parameter_bounds[p_flicker_frequency][0] = 10;   // flicker_frequency             -- Base aptitude of the fish, i.e mean time-until-detection with no other effects present
-    parameter_bounds[p_flicker_frequency][1] = 70;
-    parameter_bounds[p_tau_0][0] = 1e-1;   // tau_0             -- Base detection time on which other tau factors multiply except flicker frequency multiply
-    parameter_bounds[p_tau_0][1] = 1e2;
-    parameter_bounds[p_nu_0][0] = 1e-4;   // nu_0             -- Controls effect of loom on tau. Large nu_0 = small effect.
-    parameter_bounds[p_nu_0][1] = 1e-1;
-    parameter_bounds[p_discriminability][0] = 1.5;  // discriminability  -- Difference in mean preyishness between prey and debris, in units of the (equal) standard deviation of each.
-    parameter_bounds[p_discriminability][1] = 3.5;
-    parameter_bounds[p_delta_p][0] = 1e-4;       // put on log scale              -- Scales effect of angular size on perceptual variance
-    parameter_bounds[p_delta_p][1] = 1;
-    parameter_bounds[p_omega_p][0] = 1e-4;       //   put on a log scale            -- Scales effect of angular velocity on perceptual variance
-    parameter_bounds[p_omega_p][1] = 1e1;
-    parameter_bounds[p_ti_p][0] = 0;       //      linear scale     -- Scales effect of inspection time on perceptual variance
-    parameter_bounds[p_ti_p][1] = 1;
-    parameter_bounds[p_sigma_p_0][0] = 1e-2;       //   log scale, really no idea          -- Base constant on which other effects on perceptual variance are multiplied
-    parameter_bounds[p_sigma_p_0][1] = 1e2;
-}
-
-double Forager::validate(Strategy s, double v) {
-    if (v >= strategy_bounds[s][0] && v <= strategy_bounds[s][1]) {
-        return v;
-    } else if (v < strategy_bounds[s][0]) {
-        printf("WARNING! Strategy %s got a value %.8f, which is below the minimum %.8f. Setting to the minimum instead.\n", strategy_names[s].c_str(), v, strategy_bounds[s][0]);
-        return strategy_bounds[s][0];
-    } else {
-        printf("WARNING! Strategy %s got a value %.8f, which is above the maximum %.8f. Setting to the maximum instead.\n", strategy_names[s].c_str(), v, strategy_bounds[s][1]);
-        return strategy_bounds[s][1];
-    }
-}
-
-double Forager::validate(Parameter p, double v) {
-    if (v >= parameter_bounds[p][0] && v <= parameter_bounds[p][1]) {
-        return v;
-    } else if (v < parameter_bounds[p][0]) {
-        printf("WARNING! Parameter %s got a value %.8f, which is below the minimum %.8f. Setting to the minimum instead.\n", parameter_names[p].c_str(), v, parameter_bounds[p][0]);
-        return parameter_bounds[p][0];
-    } else {
-        printf("WARNING! Parameter %s got a value %.8f, which is above the maximum %.8f. Setting to the maximum instead.\n", parameter_names[p].c_str(), v, parameter_bounds[p][1]);
-        return parameter_bounds[p][1];
-    }
-}
-
-void Forager::set_single_strategy_bounds(Strategy strategy, double lower_bound, double upper_bound) {
-    strategy_bounds[strategy][0] = lower_bound;
-    strategy_bounds[strategy][1] = upper_bound;
-}
-
-void Forager::fix_single_strategy_bound(Strategy strategy, double fixed_value) {
-    strategy_bounds[strategy][0] = fixed_value;
-    strategy_bounds[strategy][1] = fixed_value;
-}
-
 void Forager::process_parameter_updates() {
     /* Carefully watch the ordering here, or else I could update some things with old values of other things. */
     Swimmer::process_parameter_updates(true);
@@ -255,19 +175,19 @@ void Forager::set_strategy(Strategy strategy, double value) {
 
 void Forager::set_parameter(Parameter parameter, double value) {
     switch (parameter) {
-        case p_delta_0: delta_0 = value; break;
-        case p_alpha_tau: alpha_tau = value; break;
-        case p_alpha_d: alpha_d = value; break;
-        case p_beta: beta = value; break;
-        case p_A_0: A_0 = value; break;
-        case p_flicker_frequency: flicker_frequency = value; break;
-        case p_tau_0: tau_0 = value; break;
-        case p_nu_0: nu_0 = value; break;
-        case p_discriminability: discriminability = value; break;
-        case p_delta_p: delta_p = value; break;
-        case p_omega_p: omega_p = value; break;
-        case p_ti_p: ti_p = value; break;
-        case p_sigma_p_0: sigma_p_0 = value; break;
+        case p_delta_0: delta_0 = validate(p_delta_0, value); break;
+        case p_alpha_tau: alpha_tau = validate(p_alpha_tau, value); break;
+        case p_alpha_d: alpha_d = validate(p_alpha_d, value); break;
+        case p_beta: beta = validate(p_beta, value); break;
+        case p_A_0: A_0 = validate(p_A_0, value); break;
+        case p_flicker_frequency: flicker_frequency = validate(p_flicker_frequency, value); break;
+        case p_tau_0: tau_0 = validate(p_tau_0, value); break;
+        case p_nu_0: nu_0 = validate(p_nu_0, value); break;
+        case p_discriminability: discriminability = validate(p_discriminability, value); break;
+        case p_delta_p: delta_p = validate(p_delta_p, value); break;
+        case p_omega_p: omega_p = validate(p_omega_p, value); break;
+        case p_ti_p: ti_p = validate(p_ti_p, value); break;
+        case p_sigma_p_0: sigma_p_0 = validate(p_sigma_p_0, value); break;
     }
     process_parameter_updates();
 }

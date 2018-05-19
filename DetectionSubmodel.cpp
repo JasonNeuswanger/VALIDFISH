@@ -293,5 +293,14 @@ double Forager::detection_pdf_at_t(double t, double x, double z, const PreyType 
 
 double Forager::detection_pdf_at_y(double y, double x, double z, const PreyType &pt) {
     const double t_y = time_at_y(y, x, z, pt);
-    return detection_pdf_at_t(x, t_y, z, pt);
+    return detection_pdf_at_t(t_y, x, z, pt);
+}
+
+double Forager::detection_cdf_at_t(double t, double x, double z, const PreyType &pt) {    // Not used in model, just diagnostic
+    return 1 - exp(-mean_value_function(t, x, z, pt));
+}
+
+double Forager::detection_cdf_at_y(double y, double x, double z, const PreyType &pt) {  // Not used in model, just diagnostic
+    const double t_y = time_at_y(y, x, z, pt);
+    return detection_cdf_at_t(t_y, x, z, pt);
 }

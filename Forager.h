@@ -32,11 +32,11 @@
 #define QUAD_SUBINT_LIM 100             // only relevant when using adaptive integration
 #define QUAD_EPSABS 0                   // always set to 0 to use relative instead
 #define QUAD_EPSREL 1e0                 // set precision, from 1e0 to 1e-3 or so (fast to slow) -- 1e0 works fine
-#define MEMOIZATION_PRECISION 0.01      // spatial precision of the memoized caches in m, currently 2 cm
+#define MEMOIZATION_PRECISION 0.01      // spatial precision of the memoized caches in m, currently 1 cm
 #define MEMOIZATION_PRECISION_PROBABILITY 0.01  // precision of detection probability based cache
 #define GSL_ERROR_POLICY 0              // 0 to ignore GSL errors. 1 to print them but continue. 2 to abort (for debugging mode).
 
-#define DIAG_NOCACHE false              // Disable various internal caches (works MUCH more slowly if set to true)
+#define DIAG_NOCACHE false             // Disable various internal caches (works MUCH more slowly if set to true)
 #define DIAG_NOCACHE_TAU false
 #define DIAG_NOCACHE_DETECTION_PROBABILITY false
 #define DIAG_NOCACHE_DETECTION_PDF false
@@ -82,6 +82,9 @@ private:
 
     void process_parameter_updates();       // Handles any change to parameters or strategy variables -- MAKE PRIVATE EVENTUALLY
     double RateOfEnergyIntake(bool is_net, bool is_cost); // Pass is_net = true for NREI, false for GREI
+
+    // Bounds.cpp
+
     void set_parameter_bounds();            // Ditto for parameter optimization bounds
     void set_strategy_bounds();
 
@@ -98,11 +101,6 @@ private:
 
     double average_discrimination_probability_over_prey_path(double x, double z, const PreyType &pt,
                                                              bool is_false_positive, double det_prob);
-    std::pair<double, double> discrimination_probabilities(double t, double x, double z, const PreyType &pt);
-
-    std::pair<double, double> expected_discrimination_probabilities(double x, double z, const PreyType &pt,
-                                                                    double det_prob);
-    double perceptual_variance(double t, double x, double z, const PreyType &pt);
     inline double perception_effect_of_angular_area(double distance, const PreyType &pt);
     inline double perception_effect_of_angular_velocity(double v, double t, double xsq, double zsq, double rsq);
     inline double perception_effect_of_search_image(const PreyType &pt);
@@ -112,8 +110,6 @@ private:
 
     double integrate_over_xz_plane(gsl_function *func, bool integrand_is_1d);
     double integrate_over_volume(gsl_function *func, double min_rho, double max_rho, double min_theta, double max_theta);
-    double time_at_y(double y, double x, double z, const PreyType &pt);
-    double y_at_time(double t, double x, double z, const PreyType &pt);
     double* random_xz();
 
     // EnvironmentInhabitant.cpp
@@ -201,12 +197,14 @@ public:
             {p_ti_p, "ti_p"},
             {p_sigma_p_0, "sigma_p_0"}
     };
+    std::unordered_map<std::string, Parameter> parameter_named;  // Reverse, for quickly retrieving parameter in R by name
 
     std::unordered_map<Strategy, std::array<double, 2>> strategy_bounds;
     std::unordered_map<Parameter, std::array<double, 2>> parameter_bounds;
+    std::unordered_map<Strategy, std::array<std::string, 2>> strategy_bounds_notes;
+    std::unordered_map<Parameter, std::array<std::string, 2>> parameter_bounds_notes;
+    std::unordered_map<Parameter, bool> parameter_log_transforms;
 
-    double validate(Strategy s, double v);
-    double validate(Parameter p, double v);
     // todo build manipulations
     enum Manipulation { m_prey_multiplier, m_debris_multiplier, m_crypticity_multiplier };
 
@@ -231,12 +229,18 @@ public:
 
     void set_strategy(Strategy strategy, double value);
     void set_parameter(Parameter parameter, double value);
-    void set_single_strategy_bounds(Strategy strategy, double lower_bound, double upper_bound);
-    void fix_single_strategy_bound(Strategy strategy, double fixed_value);
 
     double NREI();                  // Net rate of energy intake
     double GREI();                  // Gross rate of energy intake
     double maneuver_cost_rate();    // Energy expenditure on maneuvers, per unit time
+
+    // Bounds.cpp
+
+    double validate(Strategy s, double v);
+    double validate(Parameter p, double v);
+    void set_single_strategy_bounds(Strategy strategy, double lower_bound, double upper_bound);
+    void fix_single_strategy_bound(Strategy strategy, double fixed_value);
+
 
     // DetectionSubmodel.cpp
 
@@ -253,8 +257,20 @@ public:
     double calculate_detection_pdf_at_t(double t, double x, double z, const PreyType &pt);
     double detection_pdf_at_t(double t, double x, double z, const PreyType &pt);
     double detection_pdf_at_y(double y, double x, double z, const PreyType &pt);
+    double detection_cdf_at_t(double t, double x, double z, const PreyType &pt);
+    double detection_cdf_at_y(double y, double x, double z, const PreyType &pt);
 
     std::map<std::string, double> tau_components(double t, double x, double z, std::shared_ptr<PreyType> pt); // for diagnostics/plotting
+
+    // DiscriminationSubmodel.cpp
+
+    double perceptual_variance(double t, double x, double z, const PreyType &pt);
+
+    std::pair<double, double> discrimination_probabilities(double t, double x, double z, const PreyType &pt);
+
+    std::pair<double, double> expected_discrimination_probabilities(double x, double z, const PreyType &pt,
+                                                                    double det_prob);
+    std::map<std::string, double> perceptual_variance_components(double t, double x, double z, std::shared_ptr<PreyType> pt);
 
     // Energetics.cpp
 
@@ -287,8 +303,14 @@ public:
     double get_proportion_of_attempts_ingested();
     double get_diet_proportion_for_prey_type(std::shared_ptr<PreyType> pt);
     double get_angular_resolution();
-    double get_strategy(Strategy strategy);
-    double get_parameter(Parameter parameter);
+    double get_strategy(Strategy strategy);             // Returns a strategy variable's value as directly used in the model
+    double get_parameter(Parameter parameter);          // Returns the parameter's value as directly used in the model
+    double get_parameter_transformed(Parameter p);      // Returns the parameter's direct value or log10-transformed value if appropriate
+    double get_parameter_as_proportion(Parameter p);    // Returns parameter as a proportion (0, 1) of its transformed possible range
+    double transform_parameter_value(Parameter p, double value);    // Applies a parameter's appropriate transformation (or lack thereof) to any value, for Python plotting
+    double transform_parameter_value_as_proportion(Parameter p, double value);  // Same as above but mapped onto (0, 1) as a proportion of the allowed parameter range
+    Parameter get_parameter_named(std::string name);
+    bool is_parameter_log_scaled(Parameter p);
     std::array<double, 2> get_strategy_bounds(Strategy strategy);
     std::array<double, 2> get_parameter_bounds(Parameter parameter);
 
@@ -297,6 +319,8 @@ public:
     double passage_time(double x, double z, const PreyType &pt);
     double cross_sectional_area();
     double volume_within_radius(double r);
+    double time_at_y(double y, double x, double z, const PreyType &pt);
+    double y_at_time(double t, double x, double z, const PreyType &pt);
 
     // EnvironmentInhabitant.cpp
 

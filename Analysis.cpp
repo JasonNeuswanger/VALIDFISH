@@ -8,6 +8,10 @@ double Forager::relative_pursuits_by_position_single_prey_type(double x, double 
     /* This function gives an index of the number of pursuits per unit time made on items detected at each position.
      * However, it's based on probability densities, so it can't really translate into meaningful units unless it's
      * integrated over some volume. */
+    const double xsq = gsl_pow_2(x);
+    const double ysq = gsl_pow_2(y);
+    const double zsq = gsl_pow_2(z);
+    if (xsq + ysq + zsq > pt->rsq) return 0;
     const double v = water_velocity(z);
     if (!location_is_profitable(x, y, z, *pt)) { return 0; }
     const double detection_pdf = detection_pdf_at_y(y, x, z, *pt);
@@ -188,7 +192,7 @@ double Forager::pursuit_rate(std::string which_rate, std::shared_ptr<PreyType> p
         double sum = 0;
         const double v = water_velocity(z);
         bool prey_is_resolvable;
-        double pd, pf, ph, dp, dd; // todo check we're missing here some stuff that's in NREI
+        double pd, pf, ph, dp, dd;
         for (auto & ipt : types) {
             prey_is_resolvable = (gsl_pow_2(*x) + gsl_pow_2(z) <= ipt->rsq);
             if (prey_is_resolvable && (ipt->prey_drift_concentration > 0 || ipt->debris_drift_concentration > 0)) {
