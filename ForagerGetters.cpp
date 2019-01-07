@@ -22,6 +22,10 @@ double Forager::get_fork_length_cm() {
     return fork_length_cm;
 }
 
+double Forager::get_mass_g() {
+    return mass_g;
+}
+
 double Forager::get_max_radius() {
     return max_radius;
 }

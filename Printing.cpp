@@ -18,12 +18,14 @@ void Forager::print_cache_sizes() {
     printf("There were %ld numerator evaluations and %ld denominator evaluations.\n",  numerator_integrand_evaluations, denominator_integrand_evaluations);
 }
 
-void Forager::print_strategy() {
-    printf("Foraging strategy:\n");
-    printf("                 sigma_A : %.5f radians\n", sigma_A);
-    printf("    mean column velocity : %.5f m/s        (focal velocity %.5f m/s)\n", mean_column_velocity, focal_velocity);
-    printf("         inspection time : %.8f s\n", inspection_time);
-    printf("discrimination threshold : %.8f\n", discrimination_threshold);
+std::string Forager::format_strategy_to_print() {
+    // This function allows Python to request the strategy printout as a string rather than hiding it in C++ stdout.
+    char buffer[400];
+    sprintf(buffer, "\n");
+    sprintf(buffer+strlen(buffer), "                 sigma_A : %.5f radians\n", sigma_A);
+    sprintf(buffer+strlen(buffer), "    mean column velocity : %.5f m/s        (focal velocity %.5f m/s)\n", mean_column_velocity, focal_velocity);
+    sprintf(buffer+strlen(buffer), "         inspection time : %.8f s\n", inspection_time);
+    sprintf(buffer+strlen(buffer), "discrimination threshold : %.8f\n", discrimination_threshold);
     std::shared_ptr<PreyType> search_image_type = nullptr;
     for (auto & pt : prey_types) {
         if (pt->search_image_status == PreyType::SearchImageStatus::search_image_target) {
@@ -31,31 +33,42 @@ void Forager::print_strategy() {
         }
     }
     if (search_image_type == nullptr) {
-        printf("        search image for : None\n");
+        sprintf(buffer+strlen(buffer), "        search image for : None\n");
     } else {
-        printf("        search image for : %s\n", search_image_type->name.c_str());
+        sprintf(buffer+strlen(buffer), "        search image for : %s\n", search_image_type->name.c_str());
     }
+    return std::string(buffer);
 }
 
-void Forager::print_parameters() {
-    printf("Parameters:\n");
+void Forager::print_strategy() {
+    std::cout << format_strategy_to_print();
+}
+
+std::string Forager::format_parameters_to_print() {
+    char buffer[2000];
+    sprintf(buffer, "\n");
     for (int pInt = first_parameter; pInt <= last_parameter; pInt++) {
         auto p = static_cast<Parameter>(pInt);
         double value = get_parameter(p);
         double proportional_value = get_parameter_as_proportion(p);
         std::string log_note = (parameter_log_transforms[p]) ? "log10-" : "";
         if (value > 0.0001 && value < 10000) {
-            printf("%20s : %9.5f     (%sproportional: %.2f)", parameter_names[p].c_str(), value, log_note.c_str(), proportional_value);
+            sprintf(buffer+strlen(buffer), "%20s : %9.5f     (%sproportional: %.2f)", parameter_names[p].c_str(), value, log_note.c_str(), proportional_value);
         } else {
-            printf("%20s : %9.3e     (%sproportional: %.2f)", parameter_names[p].c_str(), value, log_note.c_str(), proportional_value);
+            sprintf(buffer+strlen(buffer), "%20s : %9.3e     (%sproportional: %.2f)", parameter_names[p].c_str(), value, log_note.c_str(), proportional_value);
         }
         if (proportional_value < 0.01) {
-            printf("     %s", parameter_bounds_notes[p][0].c_str());
+            sprintf(buffer+strlen(buffer), "     %s", parameter_bounds_notes[p][0].c_str());
         } else if (proportional_value > 0.99) {
-            printf("     %s", parameter_bounds_notes[p][1].c_str());
+            sprintf(buffer+strlen(buffer), "     %s", parameter_bounds_notes[p][1].c_str());
         }
-        printf("\n");
+        sprintf(buffer+strlen(buffer), "\n");
     }
+    return std::string(buffer);
+}
+
+void Forager::print_parameters() {
+    std::cout << format_parameters_to_print();
 }
 
 //void Forager::print_discrimination_probabilities() {
@@ -64,13 +77,52 @@ void Forager::print_parameters() {
 //    }
 //}
 
-void Forager::print_analytics(){
+std::string Forager::format_analytics_to_print(){
     analyze_results();
-    printf("Overall, pursued %.5f items/s (%.5f prey, %.5f debris). Ingested %.5f of items pursued.\n", foraging_attempt_rate, prey_pursuit_rate, debris_pursuit_rate, proportion_of_attempts_ingested);
+    double cs_area = cross_sectional_area();
+    double max_volume = volume_within_radius(max_radius);
+    double nrei = NREI();
+    char buffer[5000];
+    sprintf(buffer, "\n");
+    sprintf(buffer+strlen(buffer), "Search volume for largest prey type is % .5f\n", max_volume);
+    sprintf(buffer+strlen(buffer), "Focal velocity is % .5f\n", focal_velocity);
+    sprintf(buffer+strlen(buffer), "Cross-sectional area is % .5f\n", cs_area);
+    sprintf(buffer+strlen(buffer), "Focal swimming cost is % .5f\n", focal_swimming_cost);
+    sprintf(buffer+strlen(buffer), "NREI is %.8f.\n", nrei);
+
+    sprintf(buffer+strlen(buffer), "\nSet size by prey category and total:\n");
+    compute_set_size(true, buffer);
+    sprintf(buffer+strlen(buffer), "Total set size is % .5f\n", set_size);
+
+    sprintf(buffer+strlen(buffer), "\nPursuit rates by prey category and overall:\n");
     for (auto & pt : prey_types) {
-        printf("For %20.20s, pursued %.5f items/s (%.5f prey, %.5f debris). Ingested %.5f of items pursued.\n", pt->name.c_str(), pt->foraging_attempt_rate, pt->prey_pursuit_rate, pt->debris_pursuit_rate, pt->proportion_of_attempts_ingested);
+        if (pt->prey_drift_concentration > 0.0) {
+            sprintf(buffer+strlen(buffer), "For %20.20s, pursued %.5f items/s (%.5f prey, %.5f debris). Ingested %.5f of items pursued.\n", pt->name.c_str(), pt->foraging_attempt_rate, pt->prey_pursuit_rate, pt->debris_pursuit_rate, pt->proportion_of_attempts_ingested);
+        }
     }
+    sprintf(buffer+strlen(buffer), "Overall, pursued %.5f items/s (%.5f prey, %.5f debris). Ingested %.5f of items pursued.\n", foraging_attempt_rate, prey_pursuit_rate, debris_pursuit_rate, proportion_of_attempts_ingested);
+
+    return std::string(buffer);
 }
+
+void Forager::print_analytics() {
+    std::cout << format_analytics_to_print();
+}
+
+std::string Forager::format_prey_to_print() {
+    char buffer[5000];
+    sprintf(buffer, "Name                         Length (mm)     Prey/m3     Debris/m3     Energy (J/item)     Max Vis Distance (m)\n");
+    sprintf(buffer+strlen(buffer), "--------------------------------------------------------------------------------------------------------------\n");
+    for (auto & pt : prey_types) {
+        sprintf(buffer+strlen(buffer), "%20.20s         %4.1f           %6.3f     %10.2f       %6.3f             %.3f\n", pt->name.c_str(), 1000*pt->length, pt->prey_drift_concentration, pt->debris_drift_concentration, pt->energy_content, pt->max_visible_distance);
+    }
+    return std::string (buffer);
+}
+
+void Forager::print_prey() {
+    std::cout << format_prey_to_print();
+}
+
 
 void Forager::time_NREIs(size_t iters, size_t nreis_per_iter) {
     double result;
@@ -86,14 +138,6 @@ void Forager::time_NREIs(size_t iters, size_t nreis_per_iter) {
 }
 
 void Forager::print_status() {
-    double cs_area = cross_sectional_area();
-    double max_volume = volume_within_radius(max_radius);
-    printf("Search volume for largest prey type is % .5f\n", max_volume);
-    printf("Focal velocity is % .5f\n", focal_velocity);
-    printf("Cross-sectional area is % .5f\n", cs_area);
-    compute_set_size(true); // prints set size substats
-    printf("Set size is % .5f\n", set_size);
-    printf("Focal swimming cost is % .5f\n", focal_swimming_cost);
     // print_discrimination_probabilities();
     print_analytics();
 
@@ -113,8 +157,6 @@ void Forager::print_status() {
 //    double mmpd = expected_maneuver_cost(test_x, test_z, &pc1, false, detprob);
 //    printf("Mean maneuver energy cost for type %s at (x=%.2f, z=%.2f) is %.8f J.\n", pc1.name.c_str(), test_x, test_z, mmec);
 //    printf("Mean maneuver pursuit duration for type %s at (x=%.2f, z=%.2f) is %.8f J.\n", pc1.name.c_str(), test_x, test_z, mmpd);
-    double nrei = NREI();
-    printf("NREI is %.8f.\n", nrei);
 
     /*
     double nrei;

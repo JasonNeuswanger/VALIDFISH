@@ -134,6 +134,7 @@ std::pair<double, double> Forager::calculate_bounds_of_profitability(double x, d
 };
 
 std::pair<double, double> Forager::bounds_of_profitability(double x, double z, const PreyType &pt) {
+    // Returns bounds of profitability in t
     if (DIAG_NOCACHE) {
         return calculate_bounds_of_profitability(x, z, pt);
     } else {
@@ -150,6 +151,14 @@ std::pair<double, double> Forager::bounds_of_profitability(double x, double z, c
             return result;
         }
     }
+}
+
+std::pair<double, double> Forager::bounds_of_profitability_y(double x, double z, const PreyType &pt) {
+    // Wrapper for the above which returns bounds in y instead of t
+    std::pair<double, double> bounds_t = bounds_of_profitability(x, z, pt);
+    // printf("Bounds in time are %.6f, %.6f for prey type %s with energy content %.5f J and conc %.2e items/m3 at (x, z)=(%.3f, %.3f).\n", bounds_t.first, bounds_t.second, pt.name.c_str(), pt.energy_content, pt.prey_drift_concentration, x, z);
+    if (isnan(bounds_t.first) && isnan(bounds_t.second)) return std::make_pair((double) NAN, (double) NAN);
+    return std::make_pair(y_at_time(bounds_t.first, x, z, pt), y_at_time(bounds_t.second, x, z, pt));
 }
 
 bool Forager::location_is_profitable(double x, double y, double z, const PreyType &pt) {

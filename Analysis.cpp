@@ -33,22 +33,38 @@ double Forager::relative_pursuits_by_position(double x, double y, double z) {
     return total;
 }
 
-double Forager::depleted_prey_concentration_single_prey_type(double x, double y, double z, std::shared_ptr<PreyType> pt) {
+double Forager::depleted_prey_concentration_single_prey_type(double x, double y, double z, const PreyType &pt) {
     // Estimates the concentration of prey at each given point, taking into account the possibility of having not
     // detected it yet, or having detected it but failed to identify it as prey. Units of items/m3.
-    // Todo make this return an intuitive number if outside the reaction volume, i.e. upstream or downstream.
-    // Todo adjust for handling time by multiplying by proportion of fish's time not spent handling. (1 / 1 + denominator of NREI)
-    const double t_y = time_at_y(y, x, z, *pt);
-    const double probability_of_not_being_detected_yet = exp(-mean_value_function(t_y, x, z, *pt));
-    const double true_hit_probability = discrimination_probabilities(t_y, x, z, *pt).second;
-    return pt->prey_drift_concentration * (probability_of_not_being_detected_yet + (1 - probability_of_not_being_detected_yet) * (1 - true_hit_probability));
+    if (pt.prey_drift_concentration == 0) return 0;
+    if (gsl_pow_2(x) + gsl_pow_2(z) >= pt.rhosq) return pt.prey_drift_concentration;
+    std::pair<double, double> bounds_y = bounds_of_profitability_y(x, z, pt);
+    if (bounds_y.first == bounds_y.second) return pt.prey_drift_concentration;
+    double effective_y; // y-value from which to actually calculate the prey concentration
+    if (y > bounds_y.first) {   // item is upstream of the profitable zone; fish doesn't chase it
+        return pt.prey_drift_concentration;
+    } else if (y < bounds_y.second) {   // item downstream of profitable zone; drift concentration same as at bottom end of zone
+        effective_y = bounds_y.second;
+    } else {
+        effective_y = y;
+    }
+    // printf("For prey type %s, effective y is %.6f. Bounds of profitability are y=%.6f (upstream), y=%.6f (downstream).\n\n", pt.name.c_str(), effective_y, bounds_y.first, bounds_y.second);
+    const double t_y = time_at_y(effective_y, x, z, pt);
+    const double probability_of_not_being_detected_yet = exp(-mean_value_function(t_y, x, z, pt));
+    const double true_hit_probability = discrimination_probabilities(t_y, x, z, pt).second;
+    const double probability_not_pursued_yet_while_searching = (probability_of_not_being_detected_yet + (1 - probability_of_not_being_detected_yet) * (1 - true_hit_probability));
+    const double proportion_of_time_spent_searching = 1 - proportion_of_time_spent_handling();
+    const double probability_not_pursued_yet_overall = 1 - (proportion_of_time_spent_searching) * (1 - probability_not_pursued_yet_while_searching);
+    return pt.prey_drift_concentration * probability_not_pursued_yet_overall;
 }
 
 double Forager::depleted_prey_concentration_total_energy(double x, double y, double z) {
     // Combines depleted concentrations of all prey types to get total energy content remaining.
     double total = 0;
     for (auto & pt : prey_types) {
-        total += pt->energy_content * depleted_prey_concentration_single_prey_type(x, y, z, pt);
+        if (pt->prey_drift_concentration > 0) {
+            total += pt->energy_content * depleted_prey_concentration_single_prey_type(x, y, z, *pt);
+        }
     }
     return total;
 }

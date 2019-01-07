@@ -20,7 +20,7 @@ void Forager::set_strategy_bounds() {
     strategy_bounds[s_inspection_time][1] = 1.0;
     strategy_bounds_notes[s_inspection_time][0] = "WARNING: Selected arbitrary maximum allowed inspection time";
 
-    strategy_bounds[s_discrimination_threshold][0] = 0;
+    strategy_bounds[s_discrimination_threshold][0] = -6;
     strategy_bounds_notes[s_discrimination_threshold][0] = "WARNING: Accepts all prey without discrimination";
     strategy_bounds[s_discrimination_threshold][1] = 6; // 6 intrinsic standard deviations beyond the mean preyishness of debris should be plenty
     strategy_bounds_notes[s_discrimination_threshold][1] = "WARNING: Overly discriminating about prey vs debris";
@@ -74,7 +74,7 @@ void Forager::set_parameter_bounds() {
     parameter_bounds_notes[p_flicker_frequency][1] = "WARNING: Flicker frequency set to maximum allowed";
     parameter_log_transforms[p_flicker_frequency] = false;
 
-    parameter_bounds[p_tau_0][0] = 1e-1;
+    parameter_bounds[p_tau_0][0] = 1e-2;
     parameter_bounds_notes[p_tau_0][0] = "WARNING: Base tau at minimum allowed value";
     parameter_bounds[p_tau_0][1] = 1e2;
     parameter_bounds_notes[p_tau_0][1] = "WARNING: Base tau at maximum allowed value";

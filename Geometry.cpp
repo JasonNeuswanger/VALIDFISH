@@ -152,9 +152,9 @@ double Forager::time_at_y(double y, double x, double z, const PreyType &pt) {
     const double xsq = gsl_pow_2(x);
     const double ysq = gsl_pow_2(y);
     const double zsq = gsl_pow_2(z);
-    if (xsq + ysq + zsq > pt.rsq) {
-        printf("In time_at_y, had xsq+ysq+zsq=%.8f > rsq=%.8f.\n", xsq + ysq + zsq, pt.rsq);
-    }
+//    if (xsq + ysq + zsq > pt.rsq) {
+//        printf("In time_at_y, had xsq+ysq+zsq=%.5f > rsq=%.5f.\n", xsq + ysq + zsq, pt.rsq);
+//    }
     assert(xsq + ysq + zsq <= pt.rsq);
     const double y0 = sqrt(pt.rsq - xsq - zsq);
     assert(y >= y0);
@@ -170,7 +170,10 @@ double Forager::time_at_y(double y, double x, double z, const PreyType &pt) {
 double Forager::y_at_time(double t, double x, double z, const PreyType &pt) {
     const double xsq = gsl_pow_2(x);
     const double zsq = gsl_pow_2(z);
-    assert(xsq + zsq <= pt.rsq);
+//    if (xsq + zsq > pt.rhosq) {
+//        printf("In y_at_time for prey type %s, had xsq+xsq=%.9f > rhosq=%.9f.\n", pt.name.c_str(), xsq + zsq, pt.rhosq, pt.rsq);
+//    }
+    assert(xsq + zsq <= pt.rhosq);
     const double y0 = sqrt(pt.rsq - xsq - zsq);
     const double v = water_velocity(z);
     return y0 - t * v;

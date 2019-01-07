@@ -91,7 +91,7 @@ std::map<std::string, double> Forager::tau_components(double t, double x, double
     // Diagnostic version of the tau function to return the individual multipliers, used for plotting relative importance in Python.
     const double xsq = gsl_pow_2(x);
     const double zsq = gsl_pow_2(z);
-    const double rsq = gsl_pow_2(pt->get_max_visible_distance());
+    const double rsq = pt->rsq;
     const double v = water_velocity(z);
     const double y = sqrt(rsq - xsq - zsq) - t * v;
     const double ysq = gsl_pow_2(y);
@@ -122,7 +122,7 @@ std::map<std::string, double> Forager::tau_components(double t, double x, double
     return components;
 };
 
-void Forager::compute_set_size(bool verbose) {
+void Forager::compute_set_size(bool verbose, char *printbuffer) {
     // First, compute an adjustment for spatial attention that equals the integral under the portion of the attention
     // distribution PDF that lies below the level corresponding to a uniform attention distribution. In other words,
     // selectively unattended areas count less toward set size, but selectively more attended areas still only count
@@ -148,8 +148,8 @@ void Forager::compute_set_size(bool verbose) {
             set_volume = volume_within_radius(pt->max_visible_distance);
             pt_ss = set_volume * (pt->prey_drift_concentration + pt->debris_drift_concentration) * spatial_attention_adjustment;
             ss += pt_ss;
-            if (verbose) {
-                printf("For %20.20s, max. vis. dist=%.3f, set_volume=%.6f, prey_concentration=%4.1f, debris_concentration=%8.1f, ss for pt=%.3f.\n",
+            if (verbose && pt->prey_drift_concentration > 0.0) {
+                sprintf(printbuffer+strlen(printbuffer), "For %20.20s, max. vis. dist=%.3f, set_volume=%.6f, prey_concentration=%4.1f, debris_concentration=%8.1f, ss for pt=%.3f.\n",
                        pt->name.c_str(), pt->max_visible_distance, set_volume, pt->prey_drift_concentration, pt->debris_drift_concentration, pt_ss);
             }
         }

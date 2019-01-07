@@ -77,7 +77,7 @@ std::map<std::string, double> Forager::perceptual_variance_components(double t, 
     }
     components.emplace("sigma_p_0", sigma_p_0);
     components.emplace("inspection_time", perception_effect_of_inspection_time());
-    components.emplace("angular_area", perception_effect_of_angular_area(distance, &*pt));
+    components.emplace("angular_area", perception_effect_of_angular_area(distance, *pt));
     components.emplace("angular_velocity", perception_effect_of_angular_velocity(v, t, xsq, zsq, pt->rsq));
     return components;
 };

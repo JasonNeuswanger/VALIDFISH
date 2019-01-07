@@ -114,10 +114,9 @@ void Forager::process_parameter_updates() {
             max_radius = prey_type_radius;
         }
     }
-
     compute_focal_velocity();
     focal_swimming_cost = steady_swimming_cost(focal_velocity);
-    compute_set_size(false);
+    compute_set_size(false, nullptr);
 }
 
 void Forager::set_strategies(double sigma_A,
@@ -192,6 +191,20 @@ void Forager::set_parameter(Parameter parameter, double value) {
     process_parameter_updates();
 }
 
+void Forager::set_prey_concentration_multipliers(double value) {
+    for (auto & pt : prey_types) {
+        pt->set_prey_concentration_multiplier(value);
+    }
+    process_parameter_updates();
+}
+
+void Forager::set_debris_concentration_multipliers(double value) {
+    for (auto & pt : prey_types) {
+        pt->set_debris_concentration_multiplier(value);
+    }
+    process_parameter_updates();
+}
+
 void Forager::compute_angular_resolution() {
     /* Computes the minimum angular size of prey a fish can detect, in radians. Based on using my angular size formula
      * and inverting the Hughes & Dill 1990 reaction distance equation (based on Schmidt & O'Brien 1992) to give angular
@@ -199,34 +212,12 @@ void Forager::compute_angular_resolution() {
     angular_resolution = 2. * atan(1. / (120. * (1. - exp(-0.2 * fork_length_cm)) * M_PI));
 }
 
-double Forager::RateOfEnergyIntake(bool is_net, bool is_cost) {
+double Forager::RateOfEnergyIntake(bool is_net, bool is_cost, bool handling_time_proportion) {
+    // Pass is_net = true for NREI, false for GREI
+    // Pass is_cost to return only energy cost without gain
+    // Pass handling_time_proportion = true to return the proportion of time spent handling
     assert(num_prey_types() > 0);
     double x, y; // temporary holder for x values (y is required but unused) during the integrations
-    auto numerator_integrand = [this, is_net, is_cost](double z, double *y, double *x)->double{
-        ++numerator_integrand_evaluations;
-        double sum = 0;
-        const double v = water_velocity(z);
-        bool prey_is_resolvable;
-        double pd, pf, ph, ch, E, dp, dd;
-        for (auto & pt : prey_types) {
-            prey_is_resolvable = (gsl_pow_2(*x) + gsl_pow_2(z) <= pt->rsq);
-            if (prey_is_resolvable && (pt->prey_drift_concentration > 0 || pt->debris_drift_concentration > 0)) {
-                pd = detection_probability(*x, z, *pt);
-                auto mdps = expected_discrimination_probabilities(*x, z, *pt, pd);
-                pf = mdps.first;     // false positive probability
-                ph = mdps.second;    // true hit probability
-                ch = (is_net || is_cost) ? expected_maneuver_cost(*x, z, *pt, true, pd) : 0;
-                E = (is_cost) ? 0 : pt->energy_content;
-                dp = pt->prey_drift_concentration;
-                dd = pt->debris_drift_concentration;
-                sum += (pd * v * ((E - ch) * ph * dp - ch * pf * dd));
-            }
-        }
-        return sum;
-    };
-    gsl_function_pp_3d<decltype(numerator_integrand)> Fn(numerator_integrand, &y, &x);
-    auto Fnumerator = static_cast<gsl_function*>(&Fn);
-    double net_energy_from_prey_maneuvers = integrate_over_xz_plane(Fnumerator, false);
 
     auto denominator_integrand = [this](double z, double *y, double *x)->double{
         ++denominator_integrand_evaluations;
@@ -253,6 +244,37 @@ double Forager::RateOfEnergyIntake(bool is_net, bool is_cost) {
     gsl_function_pp_3d<decltype(denominator_integrand)> Fd(denominator_integrand, &y, &x);
     auto Fdenominator = static_cast<gsl_function*>(&Fd);
     double total_handling_time = integrate_over_xz_plane(Fdenominator, false);
+
+    if (handling_time_proportion) {
+        return 1 / (1 + total_handling_time);
+    }
+
+    auto numerator_integrand = [this, is_net, is_cost](double z, double *y, double *x)->double{
+        ++numerator_integrand_evaluations;
+        double sum = 0;
+        const double v = water_velocity(z);
+        bool prey_is_resolvable;
+        double pd, pf, ph, ch, E, dp, dd;
+        for (auto & pt : prey_types) {
+            prey_is_resolvable = (gsl_pow_2(*x) + gsl_pow_2(z) <= pt->rsq);
+            if (prey_is_resolvable && (pt->prey_drift_concentration > 0 || pt->debris_drift_concentration > 0)) {
+                pd = detection_probability(*x, z, *pt);
+                auto mdps = expected_discrimination_probabilities(*x, z, *pt, pd);
+                pf = mdps.first;     // false positive probability
+                ph = mdps.second;    // true hit probability
+                ch = (is_net || is_cost) ? expected_maneuver_cost(*x, z, *pt, true, pd) : 0;
+                E = (is_cost) ? 0 : pt->energy_content;
+                dp = pt->prey_drift_concentration;
+                dd = pt->debris_drift_concentration;
+                sum += (pd * v * ((E - ch) * ph * dp - ch * pf * dd));
+            }
+        }
+        return sum;
+    };
+    gsl_function_pp_3d<decltype(numerator_integrand)> Fn(numerator_integrand, &y, &x);
+    auto Fnumerator = static_cast<gsl_function*>(&Fn);
+    double net_energy_from_prey_maneuvers = integrate_over_xz_plane(Fnumerator, false);
+
     double adjusted_focal_swimming_cost = (is_net) ? focal_swimming_cost : 0;
     double nrei = (net_energy_from_prey_maneuvers - adjusted_focal_swimming_cost) / (1 + total_handling_time);
     assert(!isnan(nrei));
@@ -260,13 +282,17 @@ double Forager::RateOfEnergyIntake(bool is_net, bool is_cost) {
 }
 
 double Forager::NREI() {    // Net rate of energy intake
-    return RateOfEnergyIntake(true, false);
+    return RateOfEnergyIntake(true, false, false);
 }
 
 double Forager::GREI() {    // Gross rate of energy intake
-    return RateOfEnergyIntake(false, false);
+    return RateOfEnergyIntake(false, false, false);
+}
+
+double Forager::proportion_of_time_spent_handling() {
+    return RateOfEnergyIntake(true, false, true);
 }
 
 double Forager::maneuver_cost_rate() {
-    return -RateOfEnergyIntake(false, true); // negative sign changes the returned negative value to a positive cost value
+    return -RateOfEnergyIntake(false, true, false); // negative sign changes the returned negative value to a positive cost value
 }

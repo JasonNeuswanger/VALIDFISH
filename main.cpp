@@ -45,14 +45,14 @@ int main() {
 
     //forager->spatial_detection_proportions(test_pt, "All", true);
 
-    ExecutionTimer<std::chrono::milliseconds> opt_timer("Optimization time: ");
-    Optimizer *optimizer;
-    bool verbose = true;
-    size_t n_iterations = 20;
-    size_t pack_size = 6;
-    optimizer = new Optimizer(forager, n_iterations, pack_size, verbose);
-    optimizer->optimize_forager();
-    opt_timer.stop();
+//    ExecutionTimer<std::chrono::milliseconds> opt_timer("Optimization time: ");
+//    Optimizer *optimizer;
+//    bool verbose = true;
+//    size_t n_iterations = 20;
+//    size_t pack_size = 6;
+//    optimizer = new Optimizer(forager, n_iterations, pack_size, verbose);
+//    optimizer->optimize_forager();
+//    opt_timer.stop();
 
     // Optimization times vs pack sizes (20 iterations):
     // Pack size 6: 22313, 24405, 24923
@@ -62,7 +62,9 @@ int main() {
     // It looks like execution times vary quite a bit depending on what other threads on the system are doing,
     // but the most reliable performance comes from using 2 less than the number of processor cores.
 
-    forager->print_strategy();
-//    forager->print_status();
+    forager->print_prey();
+//    forager->print_strategy();
+//    forager->print_parameters();
+//    forager->print_analytics();
 
 }

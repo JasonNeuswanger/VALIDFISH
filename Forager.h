@@ -81,7 +81,7 @@ private:
     // Functions in Forager.cpp
 
     void process_parameter_updates();       // Handles any change to parameters or strategy variables -- MAKE PRIVATE EVENTUALLY
-    double RateOfEnergyIntake(bool is_net, bool is_cost); // Pass is_net = true for NREI, false for GREI
+    double RateOfEnergyIntake(bool is_net, bool is_cost, bool handling_time_proportion); // Pass is_net = true for NREI, false for GREI
 
     // Bounds.cpp
 
@@ -90,7 +90,7 @@ private:
 
     // DetectionSubmodel.cpp
 
-    void compute_set_size(bool verbose);    // Forager.cpp
+    void compute_set_size(bool verbose, char *printbuffer);    // Forager.cpp
 
     // Private internal methods here calculate the quantities below, whereas the public methods check the cache and call these if needed.
     double calculate_mean_value_function(double T, double x, double z, const PreyType &pt);
@@ -205,9 +205,6 @@ public:
     std::unordered_map<Parameter, std::array<std::string, 2>> parameter_bounds_notes;
     std::unordered_map<Parameter, bool> parameter_log_transforms;
 
-    // todo build manipulations
-    enum Manipulation { m_prey_multiplier, m_debris_multiplier, m_crypticity_multiplier };
-
     double theta = 1.83 * M_PI; // gives a 30 degree blind spot in the rear, Rountree 2009 -- but todo find a better source
     double sigma_A, mean_column_velocity, inspection_time, discrimination_threshold, search_image; // TEMPORARILY PUBLIC, SHOULD MAKE PRIVATE
 
@@ -229,10 +226,13 @@ public:
 
     void set_strategy(Strategy strategy, double value);
     void set_parameter(Parameter parameter, double value);
+    void set_prey_concentration_multipliers(double value);
+    void set_debris_concentration_multipliers(double value);
 
     double NREI();                  // Net rate of energy intake
     double GREI();                  // Gross rate of energy intake
     double maneuver_cost_rate();    // Energy expenditure on maneuvers, per unit time
+    double proportion_of_time_spent_handling();
 
     // Bounds.cpp
 
@@ -278,15 +278,21 @@ public:
                                   double det_prob);
     std::pair<double, double>calculate_bounds_of_profitability(double x, double z, const PreyType &pt);
     inline double item_profitability_at_time(double t, double x, double y, double z, const double maneuver_v, const PreyType &pt);
-    std::pair<double, double>bounds_of_profitability(double x, double z, const PreyType &pt);
+    std::pair<double, double>bounds_of_profitability(double x, double z, const PreyType &pt);               // returns bounds of profitability in t
+    std::pair<double, double> bounds_of_profitability_y(double x, double z, const PreyType &pt);   // wrapper for the above to return in y
     bool location_is_profitable(double x, double y, double z, const PreyType &pt);
 
     // Printing.cpp
 
     void print_status();
+    std::string format_strategy_to_print();
     void print_strategy();
+    std::string format_parameters_to_print();
     void print_parameters();
+    std::string format_analytics_to_print();
     void print_analytics();
+    std::string format_prey_to_print();
+    void print_prey();
     void print_cache_sizes();
     void time_NREIs(size_t iters, size_t nreis_per_iter);
 
@@ -295,6 +301,7 @@ public:
     std::shared_ptr<PreyType> get_prey_type(std::string name);
     std::vector<std::shared_ptr<PreyType>> get_prey_types();
     double get_fork_length_cm();
+    double get_mass_g();
     double get_max_radius();
     double get_focal_velocity();
     double get_focal_swimming_cost();
@@ -345,7 +352,7 @@ public:
     std::shared_ptr<PreyType> get_favorite_prey_type();
     double relative_pursuits_by_position_single_prey_type(double x, double y, double z, std::shared_ptr<PreyType> pt);
     double relative_pursuits_by_position(double x, double y, double z); // sums the above over all prey categories
-    double depleted_prey_concentration_single_prey_type(double x, double y, double z, std::shared_ptr<PreyType> pt);   // items/m3
+    double depleted_prey_concentration_single_prey_type(double x, double y, double z, const PreyType &pt);   // items/m3
     double depleted_prey_concentration_total_energy(double x, double y, double z);                                     // J/m3, summing over prey types
     std::map<std::string, std::vector<std::map<std::string, double>>> spatial_detection_proportions(std::shared_ptr<PreyType> pt, std::string which_items, bool verbose);
 
