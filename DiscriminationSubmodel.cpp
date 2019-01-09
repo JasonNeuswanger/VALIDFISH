@@ -16,7 +16,7 @@ inline double Forager::perception_effect_of_angular_area(double distance, const 
 
 inline double Forager::perception_effect_of_angular_velocity(double v, double t, double xsq, double zsq, double rsq) {
     const double angular_velocity = v * sqrt(xsq + xsq) / (rsq + t * v * (t * v - 2 * sqrt(rsq - xsq - zsq)));
-    return (1 + pow(angular_velocity, omega_p)) / 2;
+    return pow(1 + angular_velocity, omega_p);
 }
 
 inline double Forager::perception_effect_of_search_image(const PreyType &pt) {
@@ -35,7 +35,7 @@ inline double Forager::perception_effect_of_search_image(const PreyType &pt) {
 }
 
 inline double Forager::perception_effect_of_inspection_time() {
-    return pow(1/inspection_time, ti_p);
+    return ti_p / (ti_p + inspection_time - strategy_bounds[s_inspection_time][0]);
 }
 
 double Forager::perceptual_variance(double t, double x, double z, const PreyType &pt) {

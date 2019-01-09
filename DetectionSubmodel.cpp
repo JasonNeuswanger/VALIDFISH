@@ -15,7 +15,7 @@ inline double Forager::tau_effect_of_spatial_attention(double y, double distance
 }
 
 inline double Forager::tau_effect_of_set_size() {
-    return pow(inspection_time * set_size, beta);
+    return pow(1 + inspection_time * set_size, beta);
 }
 
 inline double Forager::tau_effect_of_angular_area(double distance, const PreyType &pt) {
@@ -34,7 +34,7 @@ inline double Forager::tau_effect_of_angular_area(double distance, const PreyTyp
 inline double Forager::tau_effect_of_loom(double distance, double v, double y, const PreyType &pt) {
     // Calculate loom, the derivative of angular area with respect to time.
     const double loom = (2*M_PI*pt.length*v*y*atan(pt.length/(M_PI*distance))) / (distance * (gsl_pow_2(pt.length) + gsl_pow_2(M_PI * distance)));
-    return (loom > 0) ? nu_0 / (nu_0 + loom) : 1;
+    return nu_0 / (nu_0 + loom);
 }
 
 inline double Forager::tau_effect_of_search_image(const PreyType &pt) {

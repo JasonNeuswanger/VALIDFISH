@@ -29,7 +29,7 @@ int main() {
                             1e-3,   // double nu_0,
                             2.0,    // double discriminability,
                             1e-2,   // double delta_p,
-                            3.0,    // double omega_p,
+                            1.0,    // double omega_p,
                             0.5,    // double ti_p,
                             1.0,    // double sigma_p_0
                             &maneuver_interpolation_path);
@@ -62,9 +62,9 @@ int main() {
     // It looks like execution times vary quite a bit depending on what other threads on the system are doing,
     // but the most reliable performance comes from using 2 less than the number of processor cores.
 
-    forager->print_prey();
+//    forager->print_prey();
 //    forager->print_strategy();
 //    forager->print_parameters();
-//    forager->print_analytics();
+    forager->print_analytics();
 
 }

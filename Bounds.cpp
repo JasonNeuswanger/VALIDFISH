@@ -98,17 +98,17 @@ void Forager::set_parameter_bounds() {
     parameter_bounds_notes[p_delta_p][1] = "WARNING: Angular size negligibly affects perceptual variance";
     parameter_log_transforms[p_delta_p] = true;
 
-    parameter_bounds[p_omega_p][0] = 1e-4;
-    parameter_bounds_notes[p_omega_p][0] = "WARNING: Angular velocity negliglbly affects perceptual variance";
-    parameter_bounds[p_omega_p][1] = 1e1;
+    parameter_bounds[p_omega_p][0] = 0;
+    parameter_bounds_notes[p_omega_p][0] = "WARNING: Angular velocity negligibly affects perceptual variance";
+    parameter_bounds[p_omega_p][1] = 2;
     parameter_bounds_notes[p_omega_p][1] = "WARNING: Angular velocity maximally affects perceptual variance";
-    parameter_log_transforms[p_omega_p] = true;
+    parameter_log_transforms[p_omega_p] = false;
 
-    parameter_bounds[p_ti_p][0] = 0;       //      linear scale     -- Scales effect of inspection time on perceptual variance
-    parameter_bounds_notes[p_ti_p][0] = "WARNING: Inspection time negligibly affects perceptual variance";
-    parameter_bounds[p_ti_p][1] = 1;
-    parameter_bounds_notes[p_ti_p][1] = "WARNING: Inspection time maximally affects perceptual variance";
-    parameter_log_transforms[p_ti_p] = false;
+    parameter_bounds[p_ti_p][0] = 1e-2;       //      log scale     -- Scales effect of inspection time on perceptual variance
+    parameter_bounds_notes[p_ti_p][0] = "WARNING: Inspection time maximally affects perceptual variance";
+    parameter_bounds[p_ti_p][1] = 1e1;
+    parameter_bounds_notes[p_ti_p][1] = "WARNING: Inspection time negligibly affects perceptual variance";
+    parameter_log_transforms[p_ti_p] = true;
 
     parameter_bounds[p_sigma_p_0][0] = 1e-2;       //   log scale, really no idea          -- Base constant on which other effects on perceptual variance are multiplied
     parameter_bounds_notes[p_sigma_p_0][0] = "WARNING: Base perceptual variance set to minimum allowed";
