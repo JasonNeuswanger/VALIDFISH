@@ -36,7 +36,7 @@ int main() {
     forager->build_sample_prey_types();
 
 //    ExecutionTimer<std::chrono::milliseconds> nrei_timer("Single NREI time");
-//    printf("Forager NREI is %.6f.\n", forager->NREI());
+    printf("Forager NREI is %.6f.\n", forager->NREI());
 //    nrei_timer.stop();
 //    forager->time_NREIs(5, 3);
 //    forager->print_cache_sizes();
