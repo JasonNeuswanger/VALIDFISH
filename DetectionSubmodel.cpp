@@ -269,7 +269,8 @@ double Forager::detection_probability(double x, double z, const PreyType &pt) {
 
 double Forager::calculate_detection_pdf_at_t(double t, double x, double z, const PreyType &pt) {
     if (z > surface_z || z < bottom_z) { return 0; }
-    return exp(-mean_value_function(t, x, z, pt)) / tau(t, x, z, pt);
+    const double result = exp(-mean_value_function(t, x, z, pt)) / tau(t, x, z, pt);
+    return (result < 1e-16) ? 0.0 : result; // Prevent numerical rounding errors from causing problems later
 }
 
 double Forager::detection_pdf_at_t(double t, double x, double z, const PreyType &pt) {
@@ -289,7 +290,6 @@ double Forager::detection_pdf_at_t(double t, double x, double z, const PreyType 
             result = cached_value->second;
         }
     }
-    return result;
 }
 
 double Forager::detection_pdf_at_y(double y, double x, double z, const PreyType &pt) {
