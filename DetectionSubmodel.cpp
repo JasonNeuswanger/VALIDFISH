@@ -15,7 +15,9 @@ inline double Forager::tau_effect_of_spatial_attention(double y, double distance
 }
 
 inline double Forager::tau_effect_of_set_size() {
-    return pow(1 + inspection_time * set_size, beta);
+    //return pow(1 + inspection_time * set_size, beta);
+    // return pow(inspection_time * set_size, beta);
+    return 1 + beta * set_size * inspection_time;
 }
 
 inline double Forager::tau_effect_of_angular_area(double distance, const PreyType &pt) {

@@ -56,11 +56,11 @@ void Forager::set_parameter_bounds() {
     parameter_bounds_notes[p_alpha_d][1] = "WARNING: Search image maximally affects on perceptual variance";
     parameter_log_transforms[p_alpha_d] = true;
 
-    parameter_bounds[p_beta][0] = 0;
+    parameter_bounds[p_beta][0] = 1e-2;
     parameter_bounds_notes[p_beta][0] = "WARNING: Set size * inspection time negligibly affects tau";
-    parameter_bounds[p_beta][1] = 2;
+    parameter_bounds[p_beta][1] = 1e1;
     parameter_bounds_notes[p_beta][1] = "WARNING: Set size * inspection time maximally affects tau";
-    parameter_log_transforms[p_beta] = false;
+    parameter_log_transforms[p_beta] = true;
 
     parameter_bounds[p_A_0][0] = 0;
     parameter_bounds_notes[p_A_0][0] = "WARNING: Spatial attention negligibly affects tau";

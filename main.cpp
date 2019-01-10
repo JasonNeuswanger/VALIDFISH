@@ -20,7 +20,7 @@ int main() {
                             10,     // double alpha_tau,
                             10,     // double alpha_d,
                             0.5,    // double A_0,
-                            0.5,    // double beta,
+                            0.2,    // double beta,
                             -0.04,  // double bottom_z,
                             0.47,   // double surface_z,
                             10,     // unsigned temperature,
@@ -36,7 +36,7 @@ int main() {
     forager->build_sample_prey_types();
 
 //    ExecutionTimer<std::chrono::milliseconds> nrei_timer("Single NREI time");
-    printf("Forager NREI is %.6f.\n", forager->NREI());
+//    printf("Forager NREI is %.6f.\n", forager->NREI());
 //    nrei_timer.stop();
 //    forager->time_NREIs(5, 3);
 //    forager->print_cache_sizes();
@@ -62,9 +62,10 @@ int main() {
     // It looks like execution times vary quite a bit depending on what other threads on the system are doing,
     // but the most reliable performance comes from using 2 less than the number of processor cores.
 
-//    forager->print_prey();
-//    forager->print_strategy();
-//    forager->print_parameters();
+    forager->print_prey();
+    forager->print_strategy();
+    forager->print_parameters();
     forager->print_analytics();
+    printf("\nForager NREI is %.6f.\n", forager->NREI());
 
 }
