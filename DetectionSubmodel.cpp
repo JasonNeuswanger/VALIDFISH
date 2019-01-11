@@ -19,6 +19,7 @@ inline double Forager::tau_effect_of_set_size() {
     const double effect = 1 + beta * set_size * inspection_time;
     assert(!isnan(effect));
     assert(effect >= 0);
+    return effect;
 }
 
 inline double Forager::tau_effect_of_angular_area(double distance, const PreyType &pt) {

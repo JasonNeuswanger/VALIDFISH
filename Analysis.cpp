@@ -11,11 +11,11 @@ double Forager::relative_pursuits_by_position_single_prey_type(double x, double 
     const double xsq = gsl_pow_2(x);
     const double ysq = gsl_pow_2(y);
     const double zsq = gsl_pow_2(z);
-    if (xsq + ysq + zsq > pt->rsq) return 0;
+    if (xsq + ysq + zsq > pt->rsq) { return 0; }
     const double v = water_velocity(z);
     if (!location_is_profitable(x, y, z, *pt)) { return 0; }
-    const double detection_pdf = detection_pdf_at_y(y, x, z, *pt);
     const double t_y = time_at_y(y, x, z, *pt);
+    const double detection_pdf = detection_pdf_at_t(t_y, x, z, *pt);
     auto dps = discrimination_probabilities(t_y, x, z, *pt);
     const double false_positive_probability = dps.first;
     const double true_hit_probability = dps.second;
@@ -104,6 +104,7 @@ std::map<std::string, std::vector<std::map<std::string, double>>> Forager::spati
         auto integrand = [this, ipt, which_items](double rho, double *theta, double *phi)->double{
             cartesian_3D_coords coords = cartesian_from_spherical(rho, *theta, *phi);
             if (coords.z > surface_z || coords.z < bottom_z) { return 0; }
+            if (gsl_pow_2(coords.x) + gsl_pow_2(coords.y) + gsl_pow_2(coords.z) > ipt->rsq) return 0;
             if (!location_is_profitable(coords.x, coords.y, coords.z, *ipt)) { return 0; }
             double v = water_velocity(coords.z);
             double prob = detection_pdf_at_y(coords.y, coords.x, coords.z, *ipt) * v;
