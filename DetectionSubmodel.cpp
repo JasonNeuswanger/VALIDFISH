@@ -77,6 +77,11 @@ double Forager::calculate_tau(double t, double x, double z, const PreyType &pt) 
     const double combined_tau = (1/flicker_frequency) + tau_0 * fish_attention_components * object_salience_components;
     assert(!isnan(combined_tau));
     assert(combined_tau > 0);
+    if (combined_tau <= 0) {
+        printf("Returning tau <= 0 with fish tau_0 of %.3f, fish components %.3f, salience components %.3f.\n", tau_0, fish_attention_components, object_salience_components);
+        printf("Fish attention: set size %.3f, attention %.3f, search image %.3f.\n", tau_effect_of_set_size(), tau_effect_of_spatial_attention(y, distance), tau_effect_of_search_image(pt));
+        printf("Salience: crypticity %.3f, loom %.3f, angular area %.3f.\n", pt.crypticity, tau_effect_of_loom(distance, v, y, pt), tau_effect_of_angular_area(distance, pt));
+    }
     return combined_tau;
 }
 
