@@ -23,7 +23,7 @@ double Forager::integrate_energy_cost_over_prey_path(double x, double z, const P
         const double maneuver_v = (v + focal_velocity) / 2;  // Calculate cost from avg of focal & prey position velocities
         const double cost_if_pursued = maneuver_cost(x, y, z, maneuver_v, is_energy_cost);
         if (det_pdf * cost_if_pursued < 0) {
-            printf("Got detection PDF of %.12f with cost %.12f J giving integrand value of %.12f for (x,y,z)=(%.4f,%.4f,%.4f), t=%.4f, pc=%20s.\n", det_pdf, cost_if_pursued, det_pdf * cost_if_pursued, x, y, z, t, pt->name.c_str());
+            printf("Got detection PDF of %.12f with cost %.12f J giving integrand value of %.12f for (x,y,z)=(%.4f,%.4f,%.4f), t=%.4f, pc=%20s.\n", det_pdf, cost_if_pursued, det_pdf * cost_if_pursued, x, y, z, t, pt.name.c_str());
             abort();
         }
         return det_pdf * cost_if_pursued;
