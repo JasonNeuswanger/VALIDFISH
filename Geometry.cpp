@@ -157,7 +157,8 @@ double Forager::time_at_y(double y, double x, double z, const PreyType &pt) {
 //    }
     assert(xsq + ysq + zsq <= pt.rsq);
     const double y0 = sqrt(pt.rsq - xsq - zsq);
-    assert(y >= y0);
+    assert(y >= y0);    // I THINK THE PROBLEM IS THAT THIS ASSERT ISN'T VALID WHEN DOING relative_pursuits_by_position_single_prey_type
+                        // ALTHOUGH THAT SHOULD RETURN WITHOUT EVER GETTING TO THIS POINT IF WE ARE OUTSIDE THE FORAGING BOX
     const double yT = fmax(-y0, cot(theta / 2) * sqrt(xsq + zsq));
     assert(y <= yT);
     const double v = water_velocity(z);
