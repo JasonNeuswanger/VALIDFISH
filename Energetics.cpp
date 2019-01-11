@@ -19,14 +19,11 @@ double Forager::integrate_energy_cost_over_prey_path(double x, double z, const P
 //        }
 //        assert(pt.rsq >= gsl_pow_2(x) + gsl_pow_2(y) + gsl_pow_2(z)); // Todo this assertion is sometimes violated by minor rounding errors, diagnose/fix
         const double det_pdf = detection_pdf_at_t(t, x, z, pt);
-        if (det_pdf < 0) {
-            printf("WHAT THE HECK. DETECTION_PDF IS %.12f", det_pdf);
-        }
         if (det_pdf == 0) { return 0; }
         const double maneuver_v = (v + focal_velocity) / 2;  // Calculate cost from avg of focal & prey position velocities
         const double cost_if_pursued = maneuver_cost(x, y, z, maneuver_v, is_energy_cost);
         if (det_pdf * cost_if_pursued < 0) {
-            printf("Got bad detection PDF of %.12f with cost %.12f J giving integrand value of %.12f for (x,y,z)=(%.4f,%.4f,%.4f), t=%.4f, pc=%20s.\n", det_pdf, cost_if_pursued, det_pdf * cost_if_pursued, x, y, z, t, pt.name.c_str());
+            printf("Got detection PDF of %.12f with cost %.12f J giving integrand value of %.12f for (x,y,z)=(%.4f,%.4f,%.4f), t=%.4f, pc=%20s.\n", det_pdf, cost_if_pursued, det_pdf * cost_if_pursued, x, y, z, t, pt.name.c_str());
             abort();
         }
         return det_pdf * cost_if_pursued;

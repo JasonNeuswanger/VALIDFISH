@@ -288,9 +288,6 @@ double Forager::detection_probability(double x, double z, const PreyType &pt) {
 double Forager::calculate_detection_pdf_at_t(double t, double x, double z, const PreyType &pt) {
     if (z > surface_z || z < bottom_z) { return 0; }
     const double result = exp(-mean_value_function(t, x, z, pt)) / tau(t, x, z, pt);
-    if (result < 0) {
-        printf("Got negative detection PDF with mvf=%.5f, exp(-mvf)=%.5f, tau=%.5f.\n", mean_value_function(t, x, z, pt), exp(-mean_value_function(t, x, z, pt)), tau(t, x, z, pt));
-    }
     assert(result >= 0);
     return result;
 }
@@ -312,6 +309,7 @@ double Forager::detection_pdf_at_t(double t, double x, double z, const PreyType 
             result = cached_value->second;
         }
     }
+    return result;
 }
 
 double Forager::detection_pdf_at_y(double y, double x, double z, const PreyType &pt) {
