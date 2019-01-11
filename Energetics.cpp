@@ -23,7 +23,8 @@ double Forager::integrate_energy_cost_over_prey_path(double x, double z, const P
         const double maneuver_v = (v + focal_velocity) / 2;  // Calculate cost from avg of focal & prey position velocities
         const double cost_if_pursued = maneuver_cost(x, y, z, maneuver_v, is_energy_cost);
         if (det_pdf * cost_if_pursued < 0) {
-            printf("Got a detection PDF of %.12f with cost of %.12f leading to integrand of %.12f.\n", det_pdf, cost_if_pursued, det_pdf * cost_if_pursued);
+            printf("Got detection PDF of %.12f with cost %.12f J giving integrand value of %.12f for (x,y,z)=(%.4f,%.4f,%.4f), t=%.4f, pc=%20s.\n", det_pdf, cost_if_pursued, det_pdf * cost_if_pursued, x, y, z, t, pt->name.c_str());
+            abort();
         }
         return det_pdf * cost_if_pursued;
     };
@@ -40,7 +41,8 @@ double Forager::integrate_energy_cost_over_prey_path(double x, double z, const P
     #endif
     assert(isfinite(result));
     if (result < 0) {
-        printf("Got a negative energy cost, yikes: %.18f.\n", result);
+        printf("Got a negative energy cost of %.18f J when integrated over prey path (x=%.5f, z=%.5f, bounds.first=%.5x, bounds.second=%.5f).\n", result, x, z, bounds.first, bounds.second);
+        abort();
     }
     assert(result >= 0);
     return result;
