@@ -8,7 +8,7 @@ inline double Forager::tau_effect_of_spatial_attention(double y, double distance
     const double halfFOV = theta / 2;
     const double angle = acos(y / distance);
     const double attention_dist = gsl_ran_gaussian_pdf(angle/sigma_A, sigma_A) / (sigma_A * (gsl_cdf_gaussian_P(halfFOV/sigma_A, sigma_A) - gsl_cdf_gaussian_P(-halfFOV/sigma_A, sigma_A)));
-    double effect = pow((1/theta)/attention_dist, A_0);
+    const double effect = pow((1/theta)/attention_dist, A_0);
     assert(!isnan(effect));
     assert(effect >= 0);
     return effect;
@@ -16,7 +16,9 @@ inline double Forager::tau_effect_of_spatial_attention(double y, double distance
 
 inline double Forager::tau_effect_of_set_size() {
     // return pow(inspection_time * set_size, beta);
-    return 1 + beta * set_size * inspection_time;
+    const double effect = 1 + beta * set_size * inspection_time;
+    assert(!isnan(effect));
+    assert(effect >= 0);
 }
 
 inline double Forager::tau_effect_of_angular_area(double distance, const PreyType &pt) {
@@ -28,18 +30,27 @@ inline double Forager::tau_effect_of_angular_area(double distance, const PreyTyp
         printf("Angular area %.8f is <= min_angular_area %.8f, returning INF effect.\n", angular_area, min_angular_area);
         return INFINITY;
     } else {
-        return delta_0 / (delta_0 + angular_area - min_angular_area);
+        const double effect = delta_0 / (delta_0 + angular_area - min_angular_area);
+        assert(!isnan(effect));
+        assert(effect >= 0);
+        return effect;
     }
 }
 
 inline double Forager::tau_effect_of_loom(double distance, double v, double y, const PreyType &pt) {
     // Calculate loom, the derivative of angular area with respect to time.
     const double loom = (2*M_PI*pt.length*v*y*atan(pt.length/(M_PI*distance))) / (distance * (gsl_pow_2(pt.length) + gsl_pow_2(M_PI * distance)));
-    return (loom > 0) ? nu_0 / (nu_0 + loom) : 1;
+    const double effect = (loom > 0) ? nu_0 / (nu_0 + loom) : 1;
+    assert(!isnan(effect));
+    assert(effect >= 0);
+    return effect;
 }
 
 inline double Forager::tau_effect_of_search_image(const PreyType &pt) {
-    return (pt.search_image_status == PreyType::SearchImageStatus::search_image_target) ? (1 / alpha_tau) : 1;
+    const double effect = (pt.search_image_status == PreyType::SearchImageStatus::search_image_target) ? (1 / alpha_tau) : 1;
+    assert(!isnan(effect));
+    assert(effect >= 0);
+    return effect;
 }
 
 double Forager::calculate_tau(double t, double x, double z, const PreyType &pt) {
@@ -271,7 +282,7 @@ double Forager::detection_probability(double x, double z, const PreyType &pt) {
 double Forager::calculate_detection_pdf_at_t(double t, double x, double z, const PreyType &pt) {
     if (z > surface_z || z < bottom_z) { return 0; }
     const double result = exp(-mean_value_function(t, x, z, pt)) / tau(t, x, z, pt);
-    return (result < 1e-16) ? 0.0 : result; // Prevent numerical rounding errors from causing problems later
+    return result;
 }
 
 double Forager::detection_pdf_at_t(double t, double x, double z, const PreyType &pt) {
