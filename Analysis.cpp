@@ -257,7 +257,7 @@ double Forager::pursuit_rate(std::string which_rate, std::shared_ptr<PreyType> p
     if (isnan(rate) && pt != nullptr) {
         printf("ERROR: Somehow got NaN pursuit rate for prey type %s with numerator %.4f and denominator %.4f.\n", pt->name.c_str(), numerator, denominator);
     } else if (isnan(rate)) {
-        printf("ERROR: Somehow got NaN pursuit rate for prey type null (all types) with numerator %.4f and denominator %.4f.\n", numerator, denominator);
+        printf("ERROR: Somehow got NaN pursuit rate for all prey types combined with numerator %.4f and denominator %.4f.\n", numerator, denominator);
     }
     assert(!isnan(rate));
     return rate;
