@@ -233,36 +233,6 @@ double Forager::calculate_detection_probability(double x, double z, const PreyTy
     const double result = 1 - exp(-mean_value_function(T, x, z, pt));
     assert(isfinite(result));
     assert(0 <= result && result <= 1);
-    // ALTERNATIVE METHOD: Integrate the PDF. There is absolutely no reason to do this except for testing purposes, to
-    // make sure the same result is obtained each way. Although that is the case, both results are subject to numerical
-    // error reflected here. This can be arbitrarily reduced by decreasing QUAD_EPSREL at the expense of speed and/or
-    // changing to adaptive quadrature. The result of that test suggests that we should use slightly higher precision
-    // when integrating over the PDF to get the expected value of maneuver costs and discrimination probabilities than
-    // during the other integrals.
-//    auto integrand = [this, x, z, pt](double t)->double{
-//        return detection_pdf_at_t(t, x, z, pt);
-//    };
-//    gsl_function_pp<decltype(integrand)> Fp(integrand);
-//    gsl_function *F = static_cast<gsl_function*>(&Fp);
-//    double result2, error;
-//    #if USE_ADAPTIVE_INTEGRATION
-//        gsl_integration_workspace *w = gsl_integration_workspace_alloc(QUAD_SUBINT_LIM);
-//                    gsl_integration_qags(F, 0, T, QUAD_EPSABS, 0.1*QUAD_EPSREL, QUAD_SUBINT_LIM, w, &result2, &error);
-//                    gsl_integration_workspace_free(w);
-//    #else
-//        size_t neval;
-//        gsl_integration_qng(F, 0, T, QUAD_EPSABS, 0.1*QUAD_EPSREL, &result2, &error, &neval);
-//    #endif
-//    assert(isfinite(result2));
-//    assert(result2 >= 0);
-//    if (result > 0) {
-//        printf("Detection probability as direct CDF is %.8f. By integrating PDF, it's %.8f. Returning the former.",
-//               result, result2);
-//        if (abs(result - result2) > 1e-5) {
-//            printf(" NOT A MATCH.");
-//        }
-//        printf("\n");
-//    }
     return result;
 }
 
@@ -301,11 +271,13 @@ double Forager::detection_pdf_at_t(double t, double x, double z, const PreyType 
         auto cached_value = detection_pdf_cache.find(key);
         if (cached_value == detection_pdf_cache.end()) {
             result = calculate_detection_pdf_at_t(t, x, z, pt);
+            //printf("Storing result in cache of %.5f with key %lld.\n", result, key);
             detection_pdf_cache.insert(std::make_pair(key, result));
             ++detection_pdf_cache_misses;
         } else {
             ++detection_pdf_cache_hits;
             result = cached_value->second;
+            //printf("Retrieving result from cache of %.5f for key %lld.\n", result, key);
         }
     }
     return result;

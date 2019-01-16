@@ -28,7 +28,7 @@ double Forager::relative_pursuits_by_position(double x, double y, double z) {
     if (z >= surface_z || z <= bottom_z) return 0;
     double total = 0;
     for (auto & pt : prey_types) {
-        total += relative_pursuits_by_position_single_prey_type(fabs(x), y, z, pt); // Using abs(x) here for symmetry
+        total += relative_pursuits_by_position_single_prey_type(fabs(x), y, z, pt); // use fabs(x) for symmetry
     }
     return total;
 }
