@@ -76,7 +76,7 @@ void Forager::set_parameter_bounds() {
 
     parameter_bounds[p_tau_0][0] = 1e-2;
     parameter_bounds_notes[p_tau_0][0] = "WARNING: Base tau at minimum allowed value";
-    parameter_bounds[p_tau_0][1] = 1e2;
+    parameter_bounds[p_tau_0][1] = 1e3;
     parameter_bounds_notes[p_tau_0][1] = "WARNING: Base tau at maximum allowed value";
     parameter_log_transforms[p_tau_0] = true;
 

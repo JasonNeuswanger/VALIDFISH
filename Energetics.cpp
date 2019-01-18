@@ -89,8 +89,8 @@ std::pair<double, double> Forager::calculate_bounds_of_profitability(double x, d
     /* Note that this method excludes the possibility that something would be profitable, then become unprofitable due
      * to something like higher angular velocity making identification harder, then become profitable again later on.
      * I think that's an unrealistic scenario for real fish, but I could see it potentially happening with the equations,
-     * so I shuld try some sort of warning here if it occurs. Note that these bounds are returned in terms
-     * of time.*/
+     * so I should try some sort of warning here if it occurs. Note that these bounds are returned in terms
+     * of time. */
     const double v = water_velocity(z);
     const double maneuver_v = (v + focal_velocity) / 2;
     const double xsq = gsl_pow_2(x);
