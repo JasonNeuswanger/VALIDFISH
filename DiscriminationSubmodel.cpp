@@ -7,10 +7,11 @@
 inline double Forager::perception_effect_of_angular_area(double distance, const PreyType &pt) {
     const double angular_area = gsl_pow_2(atan2(pt.length, (M_PI * distance)));
     const double min_angular_area = 0.25 * gsl_pow_2(angular_resolution); // smallest visible
-    if (angular_area <= min_angular_area) {
+    const double denominator = delta_p + angular_area - min_angular_area;
+    if (denominator <= 0) {
         return INFINITY;
     } else {
-        return delta_p / (delta_p + angular_area - min_angular_area);
+        return delta_p / denominator;
     }
 }
 
@@ -85,7 +86,7 @@ std::map<std::string, double> Forager::perceptual_variance_components(double t, 
 std::pair<double, double> Forager::discrimination_probabilities(double t, double x, double z, const PreyType &pt) {
     // Saves some time over the function below by calculting both at once. But only worth doing when we can use both at once.
     if (DIAG_NO_DISCRIMINATION_MODEL) { return std::pair<double, double>{0.1, 0.9}; }
-    if (DIAG_NOCACHE) {
+    if (DIAG_NOCACHE || DIAG_NOCACHE_DISCRIMINATION_PROBABILITIES) {
         const double visual_sigma = sqrt(1 + perceptual_variance(t, x, z, pt));
         const double false_positive_probability = 1 - gsl_cdf_gaussian_P(discrimination_threshold / visual_sigma, 1);
         const double true_hit_probability =

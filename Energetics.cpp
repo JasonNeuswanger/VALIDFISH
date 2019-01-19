@@ -73,7 +73,7 @@ double Forager::expected_maneuver_cost(double x, double z, const PreyType &pt, b
     return result;
 }
 
-inline double Forager::item_profitability_at_time(double t, double x, double y, double z, const double maneuver_v, const PreyType &pt) {
+double Forager::item_profitability_at_time(double t, double x, double y, double z, const double maneuver_v, const PreyType &pt) {
     std::pair<double, double> dps = discrimination_probabilities(t, x, z, pt);
     const double false_positive_probability = dps.first;
     const double true_hit_probability = dps.second;

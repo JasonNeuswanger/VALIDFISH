@@ -81,6 +81,7 @@ PYBIND11_MODULE(pyvalidfish, m) {
             .def("get_focal_swimming_cost", &Forager::get_focal_swimming_cost)
             .def("bounds_of_profitability", &Forager::bounds_of_profitability)
             .def("bounds_of_profitability_y", &Forager::bounds_of_profitability_y)
+            .def("item_profitability_at_time", &Forager::item_profitability_at_time)
             .def("get_foraging_attempt_rate", &Forager::get_foraging_attempt_rate)
             .def("get_proportion_of_attempts_ingested", &Forager::get_proportion_of_attempts_ingested)
             .def("get_diet_proportion_for_prey_type", &Forager::get_diet_proportion_for_prey_type)

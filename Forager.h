@@ -39,8 +39,9 @@
 #define DIAG_NOCACHE false             // Disable various internal caches (works MUCH more slowly if set to true)
 #define DIAG_NOCACHE_TAU false
 #define DIAG_NOCACHE_DETECTION_PROBABILITY false
+#define DIAG_NOCACHE_DISCRIMINATION_PROBABILITIES false
 #define DIAG_NOCACHE_DETECTION_PDF false
-#define DIAG_NOCACHE_MEAN_VALUE_FUNCTION false   // Given the other caches, this one was just a pointless lookup that almost never hit
+#define DIAG_NOCACHE_MEAN_VALUE_FUNCTION false  // Given the other caches, this one was just a pointless lookup that almost never hit
 
 #define DIAG_NO_DISCRIMINATION_MODEL false  // Discrimination model takes up about half the time; that's where the savings are
 
@@ -277,7 +278,7 @@ public:
     double expected_maneuver_cost(double x, double z, const PreyType &pt, bool is_energy_cost,
                                   double det_prob);
     std::pair<double, double>calculate_bounds_of_profitability(double x, double z, const PreyType &pt);
-    inline double item_profitability_at_time(double t, double x, double y, double z, const double maneuver_v, const PreyType &pt);
+    double item_profitability_at_time(double t, double x, double y, double z, const double maneuver_v, const PreyType &pt);
     std::pair<double, double>bounds_of_profitability(double x, double z, const PreyType &pt);               // returns bounds of profitability in t
     std::pair<double, double> bounds_of_profitability_y(double x, double z, const PreyType &pt);   // wrapper for the above to return in y
     bool location_is_profitable(double x, double y, double z, const PreyType &pt);
