@@ -138,7 +138,7 @@ double Forager::average_discrimination_probability_over_prey_path(double x, doub
     #endif
     assert(isfinite(result));
     assert(0 <= result);
-    // Capping the result at the detection probability corrects for cases in which minor (~1%) error in integrating the
+    // Capping the result at the detection probability corrects for cases in which minor (~ 1%) error in integrating the
     // pdf gives a value higher than the CDF, or the corresponding case for the expected value integral here.
     result = fmax(result, det_prob);
     return result / det_prob;
