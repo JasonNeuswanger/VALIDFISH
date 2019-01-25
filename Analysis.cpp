@@ -33,6 +33,44 @@ double Forager::relative_pursuits_by_position(double x, double y, double z) {
     return total;
 }
 
+
+double Forager::relative_pursuits_total() {  // Used for both the weighted averages below
+    double inner_theta, inner_phi;  // placeholders for the inner integrands
+    auto integrand = [this](double rho, double *theta, double *phi)->double{
+        cartesian_3D_coords coords = cartesian_from_spherical(rho, *theta, *phi);
+        return relative_pursuits_by_position(coords.x, coords.y, coords.z);
+    };
+    gsl_function_pp_3d<decltype(integrand)> Fintegrand(integrand, &inner_theta, &inner_phi);
+    gsl_function *F = static_cast<gsl_function*>(&Fintegrand);
+    return integrate_over_volume(F, NAN, NAN, NAN, NAN);
+}
+
+double Forager::mean_reaction_distance() {
+    // Returns the mean distance to a pursued prey item at the time of detection
+    double inner_theta, inner_phi;  // placeholders for the inner integrands
+    auto integrand = [this](double rho, double *theta, double *phi)->double{
+        cartesian_3D_coords coords = cartesian_from_spherical(rho, *theta, *phi);
+        const double distance = sqrt(gsl_pow_2(coords.x) + gsl_pow_2(coords.y) + gsl_pow_2(coords.z));
+        return distance * relative_pursuits_by_position(coords.x, coords.y, coords.z);
+    };
+    gsl_function_pp_3d<decltype(integrand)> Fintegrand(integrand, &inner_theta, &inner_phi);
+    gsl_function *F = static_cast<gsl_function*>(&Fintegrand);
+    return integrate_over_volume(F, NAN, NAN, NAN, NAN) / relative_pursuits_total();
+}
+
+double Forager::mean_reaction_angle() {
+    // Returns the mean angle between a pursued prey item at the time of detection and the +y (forward) axis
+    double inner_theta, inner_phi;  // placeholders for the inner integrands
+    auto integrand = [this](double rho, double *theta, double *phi)->double{
+        cartesian_3D_coords coords = cartesian_from_spherical(rho, *theta, *phi);
+        const double angle = atan2(sqrt(gsl_pow_2(coords.x) + gsl_pow_2(coords.y)), coords.y);
+        return angle * relative_pursuits_by_position(coords.x, coords.y, coords.z);
+    };
+    gsl_function_pp_3d<decltype(integrand)> Fintegrand(integrand, &inner_theta, &inner_phi);
+    gsl_function *F = static_cast<gsl_function*>(&Fintegrand);
+    return integrate_over_volume(F, NAN, NAN, NAN, NAN) / relative_pursuits_total();
+}
+
 double Forager::depleted_prey_concentration_single_prey_type(double x, double y, double z, const PreyType &pt) {
     // Estimates the concentration of prey at each given point, taking into account the possibility of having not
     // detected it yet, or having detected it but failed to identify it as prey. Units of items/m3.

@@ -119,6 +119,14 @@ double Forager::get_proportion_of_attempts_ingested() {
     return proportion_of_attempts_ingested;
 }
 
+double Forager::get_prey_pursuit_rate() {
+    return prey_pursuit_rate;
+}
+
+double Forager::get_debris_pursuit_rate() {
+    return debris_pursuit_rate;
+}
+
 double Forager::get_diet_proportion_for_prey_type(std::shared_ptr<PreyType> pt) {
     if (pt == nullptr) {
         return 0;   // return proportion of 0 if category isn't in diet at all

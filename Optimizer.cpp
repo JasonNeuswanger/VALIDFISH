@@ -29,11 +29,20 @@ Optimizer::Optimizer(std::shared_ptr<Forager> initial_forager, size_t max_iterat
     r2 = random_weights();
 }
 
-double Optimizer::validated_random_parameter_value(Forager::Strategy s) {
+double Optimizer::context_value(Forager::Strategy s) {
     if (context.find(s) != context.end()) {
         return context[s];
     } else {
+        return NAN;
+    }
+}
+
+double Optimizer::validated_random_strategy_value(Forager::Strategy s) {
+    double context_val = context_value(s);
+    if (isnan(context_val)) {
         return distributions[s](generator); // Generate a random number from a uniform distribution with the strategy's bounds
+    } else {
+        return context_val;
     }
 }
 
@@ -127,6 +136,8 @@ std::vector<double> Optimizer::optimize_forager() {
             alpha->params[Forager::Strategy::s_discrimination_threshold],
             alpha->params[Forager::Strategy::s_search_image]
     );
+    // printf("Updating with alpha fitness %.5f with params %.5f, %.5f, %.5f, %.5f, %.5f.\n", double(alpha->fitness), alpha->params[0], alpha->params[1], alpha->params[2], alpha->params[3], alpha->params[4]);
+
     return alpha_fitnesses_by_step;
 }
 

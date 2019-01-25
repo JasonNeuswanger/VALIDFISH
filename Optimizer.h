@@ -40,9 +40,10 @@ private:
 public:
 
     std::shared_ptr<Forager> initial_forager;
-    double validated_random_parameter_value(Forager::Strategy s);
+    double validated_random_strategy_value(Forager::Strategy s);
 
     void add_context(Forager::Strategy s, double value);
+    double context_value(Forager::Strategy s);
     void clear_context();
 
     Optimizer(std::shared_ptr<Forager> initial_forager, size_t max_iterations, size_t pack_size, bool verbose);

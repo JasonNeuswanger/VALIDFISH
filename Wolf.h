@@ -20,7 +20,7 @@ private:
     std::atomic<bool> needs_fitness_recalculated = true;  // Initialized to true for initial fitness calculation
     Forager forager;
     Optimizer *optimizer;
-    void enforce_bounds();
+    void enforce_bounds_and_context();
     void calculate_fitness();
     void thread_main();
 

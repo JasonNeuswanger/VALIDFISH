@@ -71,23 +71,20 @@ void Forager::print_parameters() {
     std::cout << format_parameters_to_print();
 }
 
-//void Forager::print_discrimination_probabilities() {
-//    for (auto & pt : prey_types) {
-//        printf("For category %20.20s, p(false_positive)=blank and p(true_hit)=blank. Perceptual sigma=blank (NOT IMPLEMENTED.)\n", pt->name.c_str()); // todo implement discrimination prob printing
-//    }
-//}
-
 std::string Forager::format_analytics_to_print(){
     analyze_results();
     double cs_area = cross_sectional_area();
     double max_volume = volume_within_radius(max_radius);
     double nrei = NREI();
-    char buffer[5000];
+    double mra = mean_reaction_angle();
+    char buffer[6000];
     sprintf(buffer, "\n");
     sprintf(buffer+strlen(buffer), "Search volume for largest prey type is % .5f\n", max_volume);
     sprintf(buffer+strlen(buffer), "Focal velocity is % .5f\n", focal_velocity);
     sprintf(buffer+strlen(buffer), "Cross-sectional area is % .5f\n", cs_area);
     sprintf(buffer+strlen(buffer), "Focal swimming cost is % .5f\n", focal_swimming_cost);
+    sprintf(buffer+strlen(buffer), "Mean reaction distance is %.5f m.\n", mean_reaction_distance());
+    sprintf(buffer+strlen(buffer), "Mean reaction angle is is %.5f radians (%.5f degrees).\n", mra, mra * 180 / M_PI);
     sprintf(buffer+strlen(buffer), "NREI is %.8f.\n", nrei);
 
     sprintf(buffer+strlen(buffer), "\nSet size by prey category and total:\n");

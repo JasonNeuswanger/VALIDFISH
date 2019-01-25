@@ -290,9 +290,13 @@ double Forager::GREI() {    // Gross rate of energy intake
 }
 
 double Forager::proportion_of_time_spent_handling() {
-    return RateOfEnergyIntake(true, false, true);
+    return RateOfEnergyIntake(false, false, true);
 }
 
 double Forager::maneuver_cost_rate() {
     return -RateOfEnergyIntake(false, true, false); // negative sign changes the returned negative value to a positive cost value
+}
+
+double Forager::total_cost_rate() {
+    return -RateOfEnergyIntake(true, true, false); // negative sign changes the returned negative value to a positive cost value
 }

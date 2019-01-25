@@ -74,9 +74,18 @@ double PreyType::get_energy_content() {
     return energy_content;
 }
 
-double PreyType::get_diet_proportion() {
+double PreyType::get_diet_proportion() {    // Only valid after calling forager->analyze_results()
     return diet_proportion;
 }
+
+double PreyType::get_prey_pursuit_rate() {
+    return prey_pursuit_rate;
+}
+
+double PreyType::get_debris_pursuit_rate() {
+    return debris_pursuit_rate;
+}
+
 
 double PreyType::get_max_visible_distance() {
     return max_visible_distance;

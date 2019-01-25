@@ -93,6 +93,15 @@ double Swimmer::maneuver_cost(double x, double y, double z, double v, bool is_en
         interps.insert(std::pair<double, std::shared_ptr<ManeuverInterpolation>>(interp_velocity, new ManeuverInterpolation(interp_velocity, temperature_C, fork_length_cm, &maneuver_interpolation_csv_base_path)));
     }
     double result = interps.at(interp_velocity)->interpolate(xmr, ymr, is_energy_cost);
+
+//    if (!isfinite(result)) {
+//        printf("Got a nonfinite maneuver result of %.10f at v=%.3f and x=%.3f, y=%.3f, z=%.3f, xmr=%.3f, ymr=%.3f.\n", result, v, x, y, z, xmr, ymr);
+//    }
+//    if (result < 1e-6 || result > 1000) {
+//        printf("Got a fishy maneuver result of %.10f at v=%.3f and x=%.3f, y=%.3f, z=%.3f, xmr=%.3f, ymr=%.3f.\n", result, v, x, y, z, xmr, ymr);
+//    }
+
+
     assert(isfinite(result));
 //    if (result <= 0) {
 //        std::string cost_type_label = (is_energy_cost) ? "energy" : "pursuit duration";

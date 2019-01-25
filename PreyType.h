@@ -45,6 +45,8 @@ public:
     std::string get_name();
     double get_length();
     double get_diet_proportion();
+    double get_prey_pursuit_rate();
+    double get_debris_pursuit_rate();
     double get_max_visible_distance();
     double get_prey_drift_concentration();
     double get_debris_drift_concentration();

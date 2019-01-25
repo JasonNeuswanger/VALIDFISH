@@ -24,6 +24,8 @@ PYBIND11_MODULE(pyvalidfish, m) {
             .def("get_length", &PreyType::get_length)
             .def("get_prey_drift_concentration", &PreyType::get_prey_drift_concentration)
             .def("get_debris_drift_concentration", &PreyType::get_debris_drift_concentration)
+            .def("get_prey_pursuit_rate", &PreyType::get_prey_pursuit_rate)
+            .def("get_debris_pursuit_rate", &PreyType::get_debris_pursuit_rate)
             .def("get_energy_content", &PreyType::get_energy_content);
 
     /* --------------------- Forager class and components ----------------------- */
@@ -35,6 +37,7 @@ PYBIND11_MODULE(pyvalidfish, m) {
             .def("NREI", &Forager::NREI)
             .def("GREI", &Forager::GREI)
             .def("maneuver_cost_rate", &Forager::maneuver_cost_rate)
+            .def("total_cost_rate", &Forager::total_cost_rate)
             .def("proportion_of_time_spent_handling", &Forager::proportion_of_time_spent_handling)
             .def("tau", &Forager::tau)
             .def("tau_components", &Forager::tau_components)
@@ -60,6 +63,8 @@ PYBIND11_MODULE(pyvalidfish, m) {
             .def("add_prey_type", &Forager::add_prey_type)
             .def("process_prey_type_changes", &Forager::process_prey_type_changes)
             .def("water_velocity", &Forager::water_velocity)
+            .def("mean_reaction_distance", &Forager::mean_reaction_distance)
+            .def("mean_reaction_angle", &Forager::mean_reaction_angle)
             .def("relative_pursuits_by_position", &Forager::relative_pursuits_by_position)
             .def("relative_pursuits_by_position_single_prey_type", &Forager::relative_pursuits_by_position_single_prey_type)
             .def("depleted_prey_concentration_total_energy", &Forager::depleted_prey_concentration_total_energy)
@@ -84,6 +89,8 @@ PYBIND11_MODULE(pyvalidfish, m) {
             .def("item_profitability_at_time", &Forager::item_profitability_at_time)
             .def("get_foraging_attempt_rate", &Forager::get_foraging_attempt_rate)
             .def("get_proportion_of_attempts_ingested", &Forager::get_proportion_of_attempts_ingested)
+            .def("get_prey_pursuit_rate", &Forager::get_prey_pursuit_rate)
+            .def("get_debris_pursuit_rate", &Forager::get_debris_pursuit_rate)
             .def("get_diet_proportion_for_prey_type", &Forager::get_diet_proportion_for_prey_type)
             .def("get_angular_resolution", &Forager::get_angular_resolution)
             .def("get_parameter_as_proportion", &Forager::get_parameter_as_proportion)
@@ -135,6 +142,7 @@ PYBIND11_MODULE(pyvalidfish, m) {
     py::class_<Optimizer, std::shared_ptr<Optimizer>> optimizer(m, "Optimizer");
     optimizer.def(py::init<std::shared_ptr<Forager>, size_t, size_t, bool>())
             .def("optimize_forager", &Optimizer::optimize_forager)
+            .def("validated_random_strategy_value", &Optimizer::validated_random_strategy_value)
             .def("add_context", &Optimizer::add_context)
             .def("clear_context", &Optimizer::clear_context);
 

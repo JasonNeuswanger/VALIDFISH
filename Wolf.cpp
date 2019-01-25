@@ -8,7 +8,7 @@ Wolf::Wolf(Optimizer *optimizer, Forager *forager, size_t n_vars) : optimizer(op
     params = Eigen::ArrayXd(n_vars);
     for (int sInt = Forager::first_strategy; sInt <= Forager::last_strategy; sInt++) {
         auto strategy = static_cast<Forager::Strategy>(sInt);
-        params[strategy] = optimizer->validated_random_parameter_value(strategy);
+        params[strategy] = optimizer->validated_random_strategy_value(strategy);
     }
 }
 
@@ -17,16 +17,21 @@ Wolf::~Wolf() {
     if(the_thread.joinable()) the_thread.join();
 }
 
-void Wolf::enforce_bounds() {
+void Wolf::enforce_bounds_and_context() {
     for (int sInt = Forager::first_strategy; sInt <= Forager::last_strategy; sInt++) {
         auto strategy = static_cast<Forager::Strategy>(sInt);
-        params[strategy] = trim_to_bounds(params[strategy], optimizer->initial_forager->strategy_bounds[strategy]);
+        const double context_val = optimizer->context_value(strategy);
+        if (isnan(context_val)) {
+            params[strategy] = trim_to_bounds(params[strategy], optimizer->initial_forager->strategy_bounds[strategy]);
+        } else {
+            params[strategy] = context_val;
+        }
     }
 }
 
 void Wolf::calculate_fitness() {
     computing_fitness = true;
-    enforce_bounds();
+    enforce_bounds_and_context();
     forager.set_strategies(
             params[Forager::Strategy::s_sigma_A],
             params[Forager::Strategy::s_mean_column_velocity],
@@ -37,7 +42,7 @@ void Wolf::calculate_fitness() {
     //ExecutionTimer<std::chrono::milliseconds> nrei_timer("NREI time");
     fitness = forager.NREI();
     //int nrei_duration_ms = nrei_timer.quiet_stop();
-    //printf("NREI was %.5f for wolf with params %.5f, %.5f, %.5f, %.5f.     TOOK %d ms.\n", double(fitness), params[0], params[1], params[2], params[3], nrei_duration_ms);
+    //printf("NREI was %.5f for wolf with params %.5f, %.5f, %.5f, %.5f, %.5f.     TOOK %d ms.\n", double(fitness), params[0], params[1], params[2], params[3], params[4], nrei_duration_ms);
     computing_fitness = false;
 }
 

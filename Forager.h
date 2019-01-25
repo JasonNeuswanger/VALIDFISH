@@ -233,6 +233,7 @@ public:
     double NREI();                  // Net rate of energy intake
     double GREI();                  // Gross rate of energy intake
     double maneuver_cost_rate();    // Energy expenditure on maneuvers, per unit time
+    double total_cost_rate();       // Total energy expenditure per unit time (maneuver + focal swimming)
     double proportion_of_time_spent_handling();
 
     // Bounds.cpp
@@ -309,6 +310,8 @@ public:
     double get_field_of_view();
     double get_foraging_attempt_rate();
     double get_proportion_of_attempts_ingested();
+    double get_prey_pursuit_rate();
+    double get_debris_pursuit_rate();
     double get_diet_proportion_for_prey_type(std::shared_ptr<PreyType> pt);
     double get_angular_resolution();
     double get_strategy(Strategy strategy);             // Returns a strategy variable's value as directly used in the model
@@ -353,6 +356,9 @@ public:
     std::shared_ptr<PreyType> get_favorite_prey_type();
     double relative_pursuits_by_position_single_prey_type(double x, double y, double z, std::shared_ptr<PreyType> pt);
     double relative_pursuits_by_position(double x, double y, double z); // sums the above over all prey categories
+    double relative_pursuits_total();  // total of the relative pursuit metric used for weighting the 2 means below
+    double mean_reaction_distance();
+    double mean_reaction_angle();
     double depleted_prey_concentration_single_prey_type(double x, double y, double z, const PreyType &pt);   // items/m3
     double depleted_prey_concentration_total_energy(double x, double y, double z);                                     // J/m3, summing over prey types
     std::map<std::string, std::vector<std::map<std::string, double>>> spatial_detection_proportions(std::shared_ptr<PreyType> pt, std::string which_items, bool verbose);

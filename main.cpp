@@ -62,10 +62,12 @@ int main() {
     // It looks like execution times vary quite a bit depending on what other threads on the system are doing,
     // but the most reliable performance comes from using 2 less than the number of processor cores.
 
-    forager->print_prey();
-    forager->print_strategy();
-    forager->print_parameters();
-    forager->print_analytics();
+//    forager->print_prey();
+//    forager->print_strategy();
+//    forager->print_parameters();
+//    forager->print_analytics();
     printf("\nForager NREI is %.6f.\n", forager->NREI());
+    printf("\nForager mean reaction distance is %.6f m.\n", forager->mean_reaction_distance());
+    printf("\nForager mean reaction angle is is %.6f degrees.\n", forager->mean_reaction_angle() * 180 / M_PI);
 
 }
